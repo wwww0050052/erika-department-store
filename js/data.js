@@ -20,7 +20,7 @@ window.ERIKA_DATA = (() => {
   // 衣櫥分類（opt = 可以不穿）
   const CATS = [
     { id: 'dress', name: '服裝' },
-    { id: 'hair',  name: '髮型' },
+    { id: 'hair',  name: '髮色' },
     { id: 'bag',   name: '包包', opt: true },
     { id: 'jewel', name: '珠寶', opt: true },
     { id: 'head',  name: '頭飾', opt: true },
@@ -31,27 +31,27 @@ window.ERIKA_DATA = (() => {
   // 時尚單品：cost = 金幣價、gems = 粉鑽價、gacha = 福袋限定稀有度；bonus = 擁有就加的收益倍率
   const ITEMS = [
     // 髮型
-    { id: 'hair_black',  cat: 'hair', name: '黑長直',       style: 'straight', c: '#2e1f27', d: '#120a0f', free: true, bonus: 0 },
-    { id: 'hair_wave',   cat: 'hair', name: '栗色大波浪',   style: 'wave',     c: '#7d4b33', d: '#4a2a1b', cost: 300,   bonus: .05 },
-    { id: 'hair_bun',    cat: 'hair', name: '優雅盤髮',     style: 'bun',      c: '#3b2630', d: '#1e1219', cost: 2e4,   bonus: .08 },
-    { id: 'hair_gold',   cat: 'hair', name: '蜜糖金捲髮',   style: 'curly',    c: '#e9bb68', d: '#b5813a', cost: 2e6,   bonus: .12 },
-    { id: 'hair_pink',   cat: 'hair', name: '粉紅公主捲',   style: 'curly',    c: '#f59ab9', d: '#cf5f8a', gems: 120,   bonus: .4 },
-    { id: 'hair_lilac',  cat: 'hair', name: '薰衣草仙女捲', style: 'wave',     c: '#bba4e8', d: '#8668c2', gacha: 'SR', bonus: .4 },
-    { id: 'hair_silver', cat: 'hair', name: '白金名媛鮑伯', style: 'bob',      c: '#f1ebe7', d: '#b9aca8', gacha: 'SSR', bonus: 1 },
+    { id: 'hair_black',  cat: 'hair', name: '蜜桃金漸層',       style: 'straight', c: '#2e1f27', d: '#120a0f', free: true, bonus: 0 },
+    { id: 'hair_wave',   cat: 'hair', name: '栗子棕',   style: 'wave',     c: '#7d4b33', d: '#4a2a1b', cost: 300,   bonus: .05 },
+    { id: 'hair_bun',    cat: 'hair', name: '經典黑',     style: 'bun',      c: '#3b2630', d: '#1e1219', cost: 2e4,   bonus: .08 },
+    { id: 'hair_gold',   cat: 'hair', name: '蜜糖金',   style: 'curly',    c: '#e9bb68', d: '#b5813a', cost: 2e6,   bonus: .12 },
+    { id: 'hair_pink',   cat: 'hair', name: '粉紅公主',   style: 'curly',    c: '#f59ab9', d: '#cf5f8a', gems: 120,   bonus: .4 },
+    { id: 'hair_lilac',  cat: 'hair', name: '薰衣草紫', style: 'wave',     c: '#bba4e8', d: '#8668c2', gacha: 'SR', bonus: .4 },
+    { id: 'hair_silver', cat: 'hair', name: '白金銀', style: 'bob',      c: '#f1ebe7', d: '#b9aca8', gacha: 'SSR', bonus: 1 },
 
     // 服裝
-    { id: 'dress_white',     cat: 'dress', name: '白色小洋裝',   shape: 'aline',   f: '#ffffff', a: '#f3c3d2', sl: 'puff', free: true, bonus: 0 },
+    { id: 'dress_white',     cat: 'dress', name: '粉櫻公主裝',   shape: 'aline',   f: '#ffffff', a: '#f3c3d2', sl: 'puff', free: true, bonus: 0 },
     { id: 'dress_mint',      cat: 'dress', name: '薄荷蓬蓬裙',   shape: 'aline',   f: '#bfe8d7', a: '#ffffff', sl: 'puff', cost: 800,   bonus: .05 },
-    { id: 'dress_tweed',     cat: 'dress', name: '經典粗花呢套裝', shape: 'suit',  f: '#f7d3de', a: '#2e1f27', pat: 'tweed', cost: 8e3, bonus: .08 },
-    { id: 'dress_rose',      cat: 'dress', name: '玫瑰紅晚禮服', shape: 'gown',    f: '#d3365f', a: '#f6b3c5', sl: 'none', cost: 1.5e5, bonus: .12 },
+    { id: 'dress_tweed',     cat: 'dress', name: '粗花呢洋裝', shape: 'suit',  f: '#f7d3de', a: '#2e1f27', pat: 'tweed', cost: 8e3, bonus: .08 },
+    { id: 'dress_rose',      cat: 'dress', name: '玫瑰紅禮服', shape: 'gown',    f: '#d3365f', a: '#f6b3c5', sl: 'none', cost: 1.5e5, bonus: .12 },
     { id: 'dress_lbd',       cat: 'dress', name: '黑色小禮服',   shape: 'aline',   f: '#26171f', a: '#e4c47c', sl: 'none', cost: 3e6,   bonus: .15 },
-    { id: 'dress_leopard',   cat: 'dress', name: '豹紋貴婦大衣', shape: 'coat',    f: '#dba566', a: '#3a2214', fur: '#f7efe7', pat: 'leopard', cost: 6e7, bonus: .2 },
+    { id: 'dress_leopard',   cat: 'dress', name: '豹紋貴婦洋裝', shape: 'coat',    f: '#dba566', a: '#3a2214', fur: '#f7efe7', pat: 'leopard', cost: 6e7, bonus: .2 },
     { id: 'dress_lavender',  cat: 'dress', name: '薰衣草紗裙',   shape: 'gown',    f: '#cfbaf0', a: '#ffffff', sl: 'puff', tulle: true, cost: 1.2e9, bonus: .25 },
-    { id: 'dress_fur',       cat: 'dress', name: '白貂皇后大衣', shape: 'coat',    f: '#fbf5f1', a: '#c9a35b', fur: '#ffffff', cost: 3e11, bonus: .35 },
+    { id: 'dress_fur',       cat: 'dress', name: '白貂皇后裝', shape: 'coat',    f: '#fbf5f1', a: '#c9a35b', fur: '#ffffff', cost: 3e11, bonus: .35 },
     { id: 'dress_champagne', cat: 'dress', name: '香檳亮片禮服', shape: 'mermaid', f: '#e8cd93', a: '#fff5d6', pat: 'sequin', sl: 'none', gems: 300, bonus: .6 },
     { id: 'dress_polka',     cat: 'dress', name: '復古波卡洋裝', shape: 'aline',   f: '#e84c70', a: '#ffffff', pat: 'polka', sl: 'puff', gacha: 'R', bonus: .15 },
     { id: 'dress_starry',    cat: 'dress', name: '星空晚宴服',   shape: 'gown',    f: '#2a265c', a: '#ecd08a', pat: 'stars', sl: 'none', gacha: 'SR', bonus: .4 },
-    { id: 'dress_mermaid',   cat: 'dress', name: '粉鑽人魚禮服', shape: 'mermaid', f: '#f7a8c6', a: '#ffffff', pat: 'sequin', sl: 'none', gacha: 'SSR', bonus: 1.2 },
+    { id: 'dress_mermaid',   cat: 'dress', name: '粉鑽亮片禮服', shape: 'mermaid', f: '#f7a8c6', a: '#ffffff', pat: 'sequin', sl: 'none', gacha: 'SSR', bonus: 1.2 },
 
     // 包包
     { id: 'bag_tote',    cat: 'bag', name: '帆布托特包',   shape: 'tote',    f: '#efe2cf', a: '#c9a35b', cost: 150,   bonus: .03 },
@@ -79,8 +79,8 @@ window.ERIKA_DATA = (() => {
     { id: 'head_tiara',      cat: 'head', name: '鑽石皇冠',   kind: 'tiara',      gacha: 'SSR', bonus: 1.5 },
 
     // 鞋子
-    { id: 'shoes_nude',  cat: 'shoes', name: '裸色高跟鞋', f: '#e7c0aa', free: true, bonus: 0 },
-    { id: 'shoes_red',   cat: 'shoes', name: '紅底高跟鞋', f: '#26171f', sole: '#d71e3c', cost: 1.2e4, bonus: .06 },
+    { id: 'shoes_nude',  cat: 'shoes', name: '粉櫻高跟鞋', f: '#e7c0aa', free: true, bonus: 0 },
+    { id: 'shoes_red',   cat: 'shoes', name: '漆黑高跟鞋', f: '#26171f', sole: '#d71e3c', cost: 1.2e4, bonus: .06 },
     { id: 'shoes_gold',  cat: 'shoes', name: '金色細跟鞋', f: '#e4c47c', cost: 2.5e7, bonus: .18 },
     { id: 'shoes_pink',  cat: 'shoes', name: '粉紅緞面鞋', f: '#f7b7ca', gacha: 'R', bonus: .15 },
     { id: 'shoes_glass', cat: 'shoes', name: '水晶玻璃鞋', f: '#dff1ff', glass: true, gacha: 'SSR', bonus: 1 },
@@ -103,6 +103,7 @@ window.ERIKA_DATA = (() => {
   ];
   const SPECIALS = [
     { id: 'month', ntd: 170, name: '貴婦月卡', desc: '立即得 300 粉鑽，之後 30 天每天登入再領 100 粉鑽', gems: 300 },
+    { id: 'pass', ntd: 300, name: '貴婦尊榮通行證', desc: '本季通行證的尊榮獎勵全部開放（含兩件 SSR），立刻升 5 階', gems: 0 },
     { id: 'debut', ntd: 990, name: '名媛出道禮包', desc: '1,200 粉鑽＋福袋券 10 張＋雙倍營收 24 小時（限購一次）', gems: 1200, tickets: 10, double: 24 * 3600e3, once: true },
   ];
 
@@ -150,6 +151,15 @@ window.ERIKA_DATA = (() => {
     { id: 'fr1',   name: '閨蜜一籮筐',     desc: '接待 10 位貴婦閨蜜',  gems: 15,  k: 'friends', n: 10 },
     { id: 'gc1',   name: '福袋手氣王',     desc: '開 10 次福袋',        gems: 20,  k: 'pulls',  n: 10 },
     { id: 'vip1',  name: '尊榮 VIP',       desc: '第一次儲值',          gems: 20,  k: 'rech',   n: 1 },
+    { id: 'm3a',   name: '消除達人',       desc: '時尚消消樂過 20 關',  gems: 20,  k: 'ev:m3_clear', n: 20 },
+    { id: 'ara',   name: '對決新星',       desc: '名媛對決贏 10 場',    gems: 20,  k: 'ev:arena_win', n: 10 },
+    { id: 'roa',   name: '今晚吃雞',       desc: '名媛吃雞拿下第 1 名', gems: 30,  k: 'ev:royale_win', n: 1 },
+    { id: 'rob',   name: '神槍名媛',       desc: '吃雞累計淘汰 50 人',  gems: 30,  k: 'ev:royale_kill', n: 50 },
+    { id: 'cda',   name: '牌桌女王',       desc: '牌桌贏 30 局',        gems: 20,  k: 'ev:card_win', n: 30 },
+    { id: 'mja',   name: '自摸高手',       desc: '麻將胡牌 10 次',      gems: 20,  k: 'ev:mahjong_win', n: 10 },
+    { id: 'kda',   name: '王國建築師',     desc: '王國建造升級 30 次',  gems: 20,  k: 'ev:kd_build', n: 30 },
+    { id: 'hra',   name: '名媛養成',       desc: '英雄升級 30 次',      gems: 20,  k: 'ev:hero_up', n: 30 },
+    { id: 'msa',   name: '任務達人',       desc: '完成 30 個每日任務',  gems: 30,  k: 'ev:mission', n: 30 },
     { id: 'br1',   name: '進軍國際',       desc: '開設第一家海外分店',  gems: 50,  k: 'branch', n: 1 },
   ];
 

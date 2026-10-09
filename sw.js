@@ -1,8 +1,12 @@
 // ERIKA 百貨貴婦 — 離線快取（改版時把 VERSION 加一）
-const VERSION = 'erika-v1';
+const VERSION = 'erika-v2';
 const CORE = [
   './', 'index.html', 'manifest.webmanifest',
-  'css/style.css', 'js/data.js', 'js/art.js', 'js/game.js',
+  'css/style.css', 'css/kingdom.css', 'css/games/match3.css', 'css/games/arena.css', 'css/games/cards.css', 'css/games/royale.css', 'css/games/mahjong.css',
+  'js/data.js', 'js/art.js', 'js/kingdom.js', 'js/game.js', 'js/avatar3d.js',
+  'js/games/match3.js', 'js/games/arena.js', 'js/games/cards.js', 'js/games/niuniu.js', 'js/games/poker13.js', 'js/games/royale.js', 'js/games/mahjong.js',
+  'vendor/three/three.module.min.js', 'vendor/three/three.core.min.js', 'vendor/three/addons/loaders/GLTFLoader.js', 'vendor/three/addons/utils/BufferGeometryUtils.js', 'vendor/three-vrm/three-vrm.module.min.js',
+  'assets/models/victoria.vrm',
   'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png',
 ];
 
