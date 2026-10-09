@@ -76,7 +76,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--rose); outl
   position: relative;
   z-index: 5;
 }
-.me { grid-area: me; display: flex; align-items: center; gap: 8px; min-width: 0; background: none; border: 0; padding: 0; text-align: left; }
+.hud-me { grid-area: me; display: flex; align-items: center; gap: 8px; min-width: 0; background: none; border: 0; padding: 0; text-align: left; }
 .me-ava { width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(160deg, #ffe3ec, #f7c6d6); border: 1.5px solid var(--gold); overflow: hidden; flex: none; position: relative; }
 .me-ava svg { width: 100%; height: 100%; display: block; }
 .me-txt { display: flex; flex-direction: column; min-width: 0; }
@@ -344,12 +344,12 @@ main { flex: 1; min-height: 0; position: relative; }
 .pack .btn { width: 100%; margin-top: 4px; font-size: 15px; }
 .pack .tag { position: absolute; top: 8px; right: 8px; font-size: 10.5px; font-weight: 700; color: #fff; background: var(--rose); padding: 2px 7px; border-radius: 999px; }
 .pack .first { position: absolute; top: 12px; left: -26px; transform: rotate(-38deg); background: linear-gradient(90deg, #f6d27a, #d99a2b); color: var(--plum); font-size: 10px; font-weight: 800; padding: 3px 28px; letter-spacing: .05em; }
-.special { display: grid; grid-template-columns: 64px minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 12px; border-radius: 18px; border: 1px solid var(--gold-soft); background: linear-gradient(120deg, #fffaf0, #fff0f4); }
-.special .sp-ic { width: 64px; height: 64px; border-radius: 16px; background: linear-gradient(160deg, #5b2445, #2e1124); display: grid; place-items: center; border: 1px solid var(--gold); }
-.special .sp-ic .ic { font-size: 34px; }
-.special b { font: 700 16px/1.25 var(--f-zh); display: block; }
-.special p { margin: 2px 0 0; font-size: 12px; color: var(--ink-2); }
-.special .state { font-size: 11.5px; color: var(--ok); font-weight: 700; }
+.shop-sp { display: grid; grid-template-columns: 64px minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 12px; border-radius: 18px; border: 1px solid var(--gold-soft); background: linear-gradient(120deg, #fffaf0, #fff0f4); }
+.shop-sp .sp-ic { width: 64px; height: 64px; border-radius: 16px; background: linear-gradient(160deg, #5b2445, #2e1124); display: grid; place-items: center; border: 1px solid var(--gold); }
+.shop-sp .sp-ic .ic { font-size: 34px; }
+.shop-sp b { font: 700 16px/1.25 var(--f-zh); display: block; }
+.shop-sp p { margin: 2px 0 0; font-size: 12px; color: var(--ink-2); }
+.shop-sp .state { font-size: 11.5px; color: var(--ok); font-weight: 700; }
 .fine { font-size: 11.5px; color: var(--ink-2); text-align: center; line-height: 1.6; padding: 4px 8px; }
 .ledger { background: var(--card); border: 1px solid var(--line); border-radius: 18px; overflow: hidden; }
 .ledger .lh { display: flex; justify-content: space-between; align-items: baseline; padding: 12px 14px; border-bottom: 1px solid var(--line); gap: 8px; }
@@ -545,8 +545,8 @@ canvas.erika3d { width: 100%; height: 100%; display: block; }
 .ps-cell .btn { min-width: 0; padding: 6px 10px; font-size: 12px; }
 .ps-rw { min-width: 0; flex: 1; display: block; } .ps-rw .ic { margin-right: 1px; }
 /* HUD：VIP 標章貼在頭像上，給名字更多空間 */
-.me { position: relative; }
-.me .vip { position: absolute; left: 0; top: 31px; font-size: 8.5px; padding: 2px 4px 1px; border-radius: 5px; letter-spacing: .02em; z-index: 1; }
+.hud-me { position: relative; }
+.hud-me .vip { position: absolute; left: 0; top: 31px; font-size: 8.5px; padding: 2px 4px 1px; border-radius: 5px; letter-spacing: .02em; z-index: 1; }
 .me-ava { width: 42px; height: 42px; }
 .me-txt { padding-left: 2px; }
 .hud-r { gap: 5px; }

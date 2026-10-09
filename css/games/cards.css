@@ -395,8 +395,8 @@
 .g-poker13 .p13-seat.right .p13-scards { justify-content: flex-end; }
 .g-poker13 .p13-scards .ec-card + .ec-card { margin-left: calc(var(--cw) * -.5); }
 .g-poker13 .p13-srow.best .ec-card.up .ec-front { box-shadow: 0 0 0 1.5px #f6dc9a, 0 0 12px 2px rgba(246, 220, 154, .75); }
-.g-poker13 .p13-slab { position: relative; z-index: 3; min-width: 52px; display: flex; flex-direction: column; line-height: 1.15; opacity: 0; transform: translateX(-6px); transition: opacity .3s, transform .3s; }
-.g-poker13 .p13-seat.right .p13-slab { align-items: flex-end; transform: translateX(6px); }
+.g-poker13 .p13-slab { position: relative; z-index: 3; min-width: 52px; display: flex; flex-direction: row; align-items: baseline; gap: 4px; white-space: nowrap; line-height: 1.15; opacity: 0; transform: translateX(-6px); transition: opacity .3s, transform .3s; }
+.g-poker13 .p13-seat.right .p13-slab { justify-content: flex-end; transform: translateX(6px); }
 .g-poker13 .p13-slab.show { opacity: 1; transform: none; }
 .g-poker13 .p13-slab b { font: 700 11.5px var(--f-zh); color: #fff; white-space: nowrap; text-shadow: 0 1px 2px rgba(0, 0, 0, .55); }
 .g-poker13 .p13-slab u { margin-left: 2px; text-decoration: none; font-size: 10.5px; color: #ffe08a; }
@@ -428,7 +428,13 @@
   :is(.g-niuniu, .g-poker13) .ec-res-title span { font-size: 30px; }
   :is(.g-niuniu, .g-poker13) .ec-res-char { display: none; }
   .g-niuniu .nn-main .btn { min-height: 48px; }
-  .g-niuniu .nn-me { padding-top: 4px; }
+  .g-niuniu .nn-me { padding-top: 4px; margin-bottom: 14px; }
+  .g-niuniu .nn-game { padding: 10px 12px calc(12px + var(--sab)); }
+  .g-niuniu .nn-top { padding-bottom: 4px; }
+  .g-niuniu .nn-center { min-height: 54px; gap: 6px; }
+  .g-niuniu .nn-bar { gap: 6px; }
+  .g-niuniu .nn-aux, .g-niuniu .nn-aux .btn { min-height: 36px; }
+  .g-niuniu .nn-main { min-height: 48px; }
   .g-poker13 .p13-bar .btn { min-height: 46px; }
 }
 

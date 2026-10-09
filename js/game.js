@@ -270,7 +270,7 @@
     if (o.queue && modalCount > 0) { modalQueue.push(o); return null; }
     modalCount++;
     const back = document.createElement('div');
-    back.className = 'modal-back';
+    back.className = 'modal-back' + (o.cls ? ' ' + o.cls : '');
     back.innerHTML = `<div class="modal" role="dialog" aria-modal="true">${o.x === false ? '' : `<button class="x" aria-label="關閉">${Art.icon('close')}</button>`}${o.title ? `<h3>${o.title}</h3>` : ''}<div class="mbody">${o.body || ''}</div>${o.actions ? `<div class="acts">${o.actions.map((a, i) => `<button class="btn ${a.cls || ''}" data-a="${i}">${a.label}</button>`).join('')}</div>` : ''}</div>`;
     const m = back.firstElementChild;
     const close = () => {
@@ -764,7 +764,7 @@
       if (p.id === 'month' && S.month > now()) { state = `生效中・剩 ${Math.ceil((S.month - now()) / 86400e3)} 天`; label = '續購 ' + ntd(p.ntd); }
       if (p.id === 'debut' && S.debut) { state = '已購買'; cls = 'btn off'; label = '已購買'; }
       if (p.id === 'pass' && pass().premium) { state = `第 ${pass().season} 季已啟用`; cls = 'btn off'; label = '已啟用'; }
-      return `<div class="special"><div class="sp-ic">${p.id === 'month' ? Art.gem() : Art.ticket()}</div><div style="min-width:0"><b>${p.name}</b><p>${p.desc}</p>${state ? `<div class="state">${state}</div>` : ''}</div><button class="${cls}" data-sp="${p.id}">${label}</button></div>`;
+      return `<div class="shop-sp"><div class="sp-ic">${p.id === 'month' ? Art.gem() : Art.ticket()}</div><div style="min-width:0"><b>${p.name}</b><p>${p.desc}</p>${state ? `<div class="state">${state}</div>` : ''}</div><button class="${cls}" data-sp="${p.id}">${label}</button></div>`;
     };
     $('#pg-shop .pane').innerHTML = `
       <div class="vipcard"><div class="vip-top"><div><div class="eyebrow" style="color:#ecd08a">ERIKA Privilège</div><div class="vip-lv"><small>VIP</small>${v}</div></div>

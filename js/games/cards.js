@@ -472,10 +472,11 @@ ${SUIT_SHAPE.map((p, s) => `<symbol id="ecs${s}" viewBox="-10.5 -10.5 21 21"><g 
   function linkage(api, o) {
     const out = [];
     const has = f => typeof api[f] === 'function';
+    const f = n => (typeof api.fmt === 'function' ? api.fmt(n) : fmt(n));
     try {
       if (has('event')) { api.event('card_round', { game: o.game, win: o.net > 0 }); if (o.net > 0) api.event('card_win', { game: o.game }); }
       const g = {};
-      if (o.net > 0) { const ru = has('resUnit') ? api.resUnit() : 100; const ore = Math.max(1, Math.floor((ru > 0 ? ru : 100) * 0.3)); g.res = { ore }; out.push({ k: '寶石原石', v: '+' + fmt(ore), cls: 'ore' }); }
+      if (o.net > 0) { const ru = has('resUnit') ? api.resUnit() : 100; const ore = Math.max(1, Math.floor((ru > 0 ? ru : 100) * 0.3)); g.res = { ore }; out.push({ k: '寶石原石', v: '+' + f(ore), cls: 'ore' }); }
       if (o.big && o.shardIds && o.shardIds.length) {
         const id = o.shardIds[Math.floor(Math.random() * o.shardIds.length)];
         const c = (api.cast ? api.cast() : []).find(x => x.id === id);
@@ -487,7 +488,7 @@ ${SUIT_SHAPE.map((p, s) => `<symbol id="ecs${s}" viewBox="-10.5 -10.5 21 21"><g 
       if (o.net < 0 && has('perk')) {
         const pct = Math.max(0, Math.min(100, +api.perk('cards_rebate') || 0));
         const back = Math.floor(-o.net * pct / 100);
-        if (back > 0) { api.payout(back, o.x, o.y); out.push({ k: `貴婦返水 ${pct}%`, v: '+' + fmt(back), cls: 'rebate' }); }
+        if (back > 0) { api.payout(back, o.x, o.y); out.push({ k: `貴婦返水 ${pct}%`, v: '+' + f(back), cls: 'rebate' }); }
       }
     } catch (e) { console.error(e); }
     return out;

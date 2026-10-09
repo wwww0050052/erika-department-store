@@ -254,7 +254,7 @@
       base = bu * C.TIERS[tierI].mult;
       if (api.coins < base * 2) { api.toast('金幣不足，先到新手桌玩玩吧'); api.sound.err(); return; }
       screen = 'game'; roundNo = 0;
-      o.setTitle('貴婦妞妞・' + C.TIERS[tierI].name);
+      o.setTitle('貴婦妞妞');
       run.kill(); run = C.runner();
       swapScreen(buildGame());
       onResize();

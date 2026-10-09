@@ -1,5 +1,5 @@
 // 無頭 Edge 截圖／操作工具（開發用）
-// 用法：node tools/shot.mjs <網址> <輸出.png> [--w 390] [--h 844] [--wait 1500] [--steps steps.json]
+// 用法：node tools/shot.mjs <網址> <輸出.png> [--w 390] [--h 844] [--wait 1500] [--steps steps.json] [--timeout 30000]
 // steps.json 是陣列，每一步可以是：
 //   {"wait": 毫秒} | {"eval": "JS 程式（可 await，回傳值會印出）"} | {"tap": [x, y]} | {"drag": [x1, y1, x2, y2]} | {"shot": "另一張.png"}
 // 頁面的 console 錯誤與例外會印在終端機上。
@@ -23,7 +23,13 @@ const proc = spawn(EDGE, ['--headless=new', '--disable-gpu-sandbox', '--no-first
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 let ws, seq = 0;
 const pending = new Map();
-const send = (method, params = {}) => new Promise((res, rej) => { const id = ++seq; pending.set(id, { res, rej }); ws.send(JSON.stringify({ id, method, params })); });
+const STEP_MS = +opt('timeout', 30000);
+const send = (method, params = {}) => new Promise((res, rej) => {
+  const id = ++seq;
+  const t = setTimeout(() => { pending.delete(id); rej(new Error(`${method} 逾時（${STEP_MS}ms）`)); }, STEP_MS);
+  pending.set(id, { res: v => { clearTimeout(t); res(v); }, rej: e => { clearTimeout(t); rej(e); } });
+  ws.send(JSON.stringify({ id, method, params }));
+});
 
 try {
   let target;
@@ -58,4 +64,8 @@ try {
   }
   await shot(out);
 } catch (e) { console.error('失敗：', e.message); process.exitCode = 1; }
-finally { try { ws && ws.close(); } catch { /* 略 */ } proc.kill(); await sleep(300); try { fs.rmSync(prof, { recursive: true, force: true }); } catch { /* 略 */ } }
+finally {
+  try { ws && ws.close(); } catch { /* 略 */ }
+  // Windows 上 proc.kill() 只會關掉主程序，要用 taskkill 連子程序一起關
+  if (process.platform === 'win32') { try { spawn('taskkill', ['/PID', String(proc.pid), '/T', '/F'], { stdio: 'ignore' }); } catch { proc.kill(); } } else proc.kill();
+  await sleep(400); try { fs.rmSync(prof, { recursive: true, force: true }); } catch { /* 略 */ } }
