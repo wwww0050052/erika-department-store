@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="zh-Hant"><head><meta charset="utf-8"><title>美術總覽（測試用）</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400..900;1,6..96,400..900&display=swap">
+<link rel="stylesheet" href="../css/style.css">
+<style>
+  body{overflow:auto;padding:16px;background:#fbeef2}
+  h2{font:700 16px sans-serif;margin:18px 0 8px}
+  .row{display:flex;flex-wrap:wrap;gap:10px}
+  .av-box{width:180px;height:300px;background:linear-gradient(#fff,#fde7ee);border:1px solid #efd2dc;border-radius:12px}
+  .av-box svg{width:100%;height:100%}
+  .ic-box{width:96px;text-align:center;font-size:11px}
+  .ic-box div{width:96px;height:96px;background:linear-gradient(160deg,#fff6f8,#fbe3eb);border-radius:12px;display:grid;place-items:center}
+  .ic-box svg{width:90%;height:90%}
+  .fac{width:390px;height:440px;position:relative;border-radius:12px;overflow:hidden}
+  .fac svg{position:absolute;inset:0;width:100%;height:100%}
+</style></head><body>
+<h2>造型</h2><div class="row" id="avs"></div>
+<h2>單品圖示</h2><div class="row" id="items"></div>
+<h2>樓層／禮盒／方案</h2><div class="row" id="misc"></div>
+<h2>門面</h2><div class="row" id="facs"></div>
+<script src="../js/data.js"></script><script src="../js/art.js"></script>
+<script>
+  Art.inject();
+  const { ITEMS, FLOORS, CITIES } = ERIKA_DATA, I = Object.fromEntries(ITEMS.map(i => [i.id, i]));
+  const looks = [
+    ['hair_black', 'dress_white', null, null, null, 'shoes_nude', null],
+    ['hair_wave', 'dress_tweed', 'bag_quilt', 'jewel_pearl', 'head_sunglass', 'shoes_red', 'pet_poodle'],
+    ['hair_bun', 'dress_rose', 'bag_croc', 'jewel_diamond', 'head_hat', 'shoes_gold', null],
+    ['hair_gold', 'dress_leopard', 'bag_ostrich', 'jewel_ruby', 'head_fascinator', 'shoes_red', 'pet_cat'],
+    ['hair_pink', 'dress_lavender', 'bag_pearl', 'jewel_emerald', 'head_pearlband', 'shoes_pink', 'pet_pom'],
+    ['hair_silver', 'dress_mermaid', 'bag_crystal', 'jewel_pinkdia', 'head_tiara', 'shoes_glass', 'pet_toy'],
+    ['hair_lilac', 'dress_starry', 'bag_mint', 'jewel_sapphire', 'head_bow', 'shoes_glass', null],
+    ['hair_black', 'dress_fur', 'bag_tote', null, null, 'shoes_nude', null],
+    ['hair_wave', 'dress_champagne', null, null, null, 'shoes_gold', null],
+    ['hair_bun', 'dress_lbd', null, 'jewel_pearl', null, 'shoes_red', null],
+    ['hair_gold', 'dress_polka', null, null, 'head_bow', 'shoes_pink', null],
+    ['hair_black', 'dress_mint', null, null, null, 'shoes_nude', null],
+  ];
+  const keys = ['hair', 'dress', 'bag', 'jewel', 'head', 'shoes', 'pet'];
+  avs.innerHTML = looks.map(l => `<div class="av-box">${Art.avatar(Object.fromEntries(keys.map((k, i) => [k, l[i] ? I[l[i]] : null])))}</div>`).join('');
+  items.innerHTML = ITEMS.map(it => `<div class="ic-box"><div>${Art.itemIcon(it)}</div>${it.name}</div>`).join('');
+  misc.innerHTML = FLOORS.map(f => `<div class="ic-box"><div>${Art.floorIcon(f.icon, f.tint)}</div>${f.name}</div>`).join('') + `<div style="width:200px">${Art.giftBox()}</div>` + [1, 2, 3, 4, 5, 6].map(n => `<div class="ic-box"><div>${Art.packArt(n)}</div></div>`).join('');
+  facs.innerHTML = [CITIES[0], CITIES[4], CITIES[9]].map(c => `<div class="fac">${Art.facade(c)}</div>`).join('');
+</script></body></html>

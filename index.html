@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<title>ERIKA百貨貴婦</title>
+<meta name="description" content="一直點就能變身百貨貴婦的點擊放置遊戲">
+<meta name="theme-color" content="#fdf1f4">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="ERIKA百貨">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<!--HEAD-->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400..900;1,6..96,400..900&family=Noto+Serif+TC:wght@600;700&display=swap">
+<link rel="stylesheet" href="css/style.css">
+<!--/HEAD-->
+</head>
+<body>
+<!--BODY-->
+<div id="app">
+  <header class="hud">
+    <button class="me" id="btnProfile" aria-label="貴婦檔案">
+      <span class="me-ava" id="meAva"></span>
+      <span class="me-txt"><b id="meName">Erika</b><span id="meTitle">Lv.1 小資女孩</span></span>
+      <span class="vip v0" id="vipBadge">VIP 0</span>
+    </button>
+    <div class="hud-r">
+      <button class="chip-btn" id="btnGems" aria-label="粉鑽，前往儲值"><span id="gemIc"></span><span id="gemTxt" class="num">0</span><i>+</i></button>
+      <button class="icon-btn" id="btnAch" aria-label="成就"><span id="achIc"></span><span class="dot" id="achDot" hidden></span></button>
+      <button class="icon-btn" id="btnSet" aria-label="設定"><span id="setIc"></span></button>
+    </div>
+    <div class="money"><span id="coinIc"></span><b id="coinTxt">0</b><span class="ips" id="ipsTxt"></span></div>
+  </header>
+  <main>
+    <section class="page on" id="pg-home" aria-label="百貨">
+      <div class="stage" id="stage">
+        <div class="facade" id="facade"></div>
+        <div class="avatar-wrap"><div id="avatar"></div></div>
+        <div class="city-tag" id="cityTag"></div>
+        <div class="tap-hint" id="tapHint" hidden>輕點畫面開始血拼 ♥</div>
+        <button class="btn goldb branch-cta" id="branchCta" hidden>開分店<small id="branchStars"></small></button>
+        <div class="fever"><div class="fever-bar"><i id="feverFill"></i></div><span class="fever-lbl" id="feverLbl">購物狂熱</span></div>
+      </div>
+      <div class="boosts" id="boosts"></div>
+    </section>
+    <section class="page" id="pg-floors" aria-label="樓層"><div class="pane"></div></section>
+    <section class="page" id="pg-wardrobe" aria-label="衣櫥"><div class="pane"></div></section>
+    <section class="page" id="pg-gacha" aria-label="福袋"><div class="pane"></div></section>
+    <section class="page" id="pg-shop" aria-label="儲值"><div class="pane"></div></section>
+  </main>
+  <nav class="tabbar" id="tabbar" aria-label="分頁"></nav>
+</div>
+<canvas id="fx" aria-hidden="true"></canvas>
+<div id="modalRoot"></div>
+<div id="toasts" aria-live="polite"></div>
+<script src="js/data.js"></script>
+<script src="js/art.js"></script>
+<script src="js/game.js"></script>
+<!--/BODY-->
+</body>
+</html>
