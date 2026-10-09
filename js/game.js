@@ -84,7 +84,8 @@
     return s;
   }
   function loadLocal() { try { const raw = localStorage.getItem(SAVE_KEY); if (raw) return JSON.parse(raw); } catch (e) { /* 無痕模式等 */ } return null; }
-  function save() { if (SANDBOX) return; S.savedAt = now(); S.lastSeen = now(); try { localStorage.setItem(SAVE_KEY, JSON.stringify(S)); } catch (e) { /* 存不了就算了 */ } }
+  let passive = false; // 同一個遊戲在別的分頁／視窗打開時，這裡暫停並停止存檔
+  function save() { if (SANDBOX || passive) return; S.savedAt = now(); S.lastSeen = now(); try { localStorage.setItem(SAVE_KEY, JSON.stringify(S)); } catch (e) { /* 存不了就算了 */ } }
 
   // ================= 經濟 =================
   const MS = [10, 25, 50, 100, 150, 200, 250, 300, 400, 500, 600, 700, 800, 900, 1000];
@@ -482,14 +483,21 @@
       el.querySelector('.b-prog').style.width = on ? Math.min(100, (until - t) / b.dur * 100) + '%' : '0';
     }
   }
-  function buyBoost(b) {
-    if (b.id === 'warp' && rawIps() <= 0) { toast('先開幕一層樓，時光快轉才有收益喔'); return; }
+  function buyBoost(b, el) {
+    if (b.id === 'warp' && rawIps() <= 0) { toast('先開幕一層樓，時光快轉才有收益喔'); Sound.err(); return; }
     if (!spendGems(b.gems)) return;
     Sound.buy(); vib(15);
     if (b.id === 'warp') {
-      const v = ips() * 7200; gain(v);
-      toast(`時光快轉！拿到 ${fmt(v)} 金幣`, 'gold');
-      FX.rain('coin', 40, $('#stage').getBoundingClientRect());
+      const v = ips() * 7200;
+      gain(v);
+      butlerHold = now() + 8000; // 剛快轉的金幣先讓妳看清楚，管家 8 秒後才繼續花
+      updateHudFast();
+      const [x, y] = el ? centerOf(el) : [innerWidth / 2, innerHeight / 2];
+      FX.fly('coin', x, y, 18, '#coinIc');
+      const c = $('#coinTxt').getBoundingClientRect();
+      FX.text(c.left + 70, c.bottom + 70, '+' + fmt(v), 30, false); // 從金幣欄下方往上飄進去
+      Sound.cash();
+      toast(`時光快轉！金幣 +${fmt(v)}（現在共 ${fmt(S.coins)}）`, 'gold');
     } else {
       S.boost[b.id] = Math.max(now(), S.boost[b.id] || 0) + b.dur;
       toast(`${b.name}啟動！${b.desc}，持續 30 分鐘`, 'gold');
@@ -497,8 +505,17 @@
     save(); Cloud.soon(); updateBoosts();
   }
 
-  // 管家：自動挑最划算的升級
+  // 管家：自動挑最划算的升級（每 15 秒回報一次花了多少）
+  let butlerHold = 0, butlerLog = { n: 0, spent: 0, at: 0 };
+  function butlerReport(force) {
+    const t = now();
+    if (!butlerLog.n || (!force && t - butlerLog.at < 15000)) return;
+    toast(`管家代買：剛幫妳升級 ${butlerLog.n} 次，花了 ${fmt(butlerLog.spent)} 金幣`);
+    butlerLog = { n: 0, spent: 0, at: t };
+  }
   function butlerStep() {
+    if (now() < butlerHold) return false;
+    if (!butlerLog.at) butlerLog.at = now();
     let best = null;
     const m = mult(), nf = nextFloor();
     S.floors.forEach((l, i) => {
@@ -506,15 +523,15 @@
       const c = floorCost(i, l); if (c > S.coins) return;
       let score = (floorInc(i, l + 1) - floorInc(i, l)) * m / c;
       if (l === 0) score *= 3;
-      if (!best || score > best.score) best = { score, fn: () => { S.coins -= c; S.floors[i]++; if (l === 0) toast(`管家幫妳開了「${FLOORS[i].name}」`, 'gold'); } };
+      if (!best || score > best.score) best = { score, fn: () => { S.coins -= c; S.floors[i]++; butlerLog.n++; butlerLog.spent += c; if (l === 0) toast(`管家幫妳開了「${FLOORS[i].name}」`, 'gold'); } };
     });
     const tc = tapCost();
     if (tc <= S.coins) {
       const rate = S.boost.auto > now() ? 8 : 3;
       const score = (m + ips() * 0.004) * rate / tc;
-      if (!best || score > best.score) best = { score, fn: () => { S.coins -= tc; S.tapLv++; } };
+      if (!best || score > best.score) best = { score, fn: () => { S.coins -= tc; S.tapLv++; butlerLog.n++; butlerLog.spent += tc; } };
     }
-    if (best) { best.fn(); return true; }
+    if (best) { best.fn(); butlerReport(); return true; }
     return false;
   }
 
@@ -1101,6 +1118,7 @@
     S.lastSeen = t;
   }
   function frame(ts) {
+    if (passive) return;
     const dt = Math.min(1, Math.max(0, (ts - lastFrame) / 1000));
     lastFrame = ts;
     tick(dt);
@@ -1139,7 +1157,7 @@
       doTap(e.clientX, e.clientY, true);
     });
     $('#stage').addEventListener('contextmenu', e => e.preventDefault());
-    $('#boosts').addEventListener('click', e => { const el = e.target.closest('.boost'); if (!el) return; const b = BOOSTS.find(x => x.id === el.dataset.b); twoTap(el, () => buyBoost(b), updateBoosts); });
+    $('#boosts').addEventListener('click', e => { const el = e.target.closest('.boost'); if (!el) return; const b = BOOSTS.find(x => x.id === el.dataset.b); twoTap(el, () => buyBoost(b, el), updateBoosts); });
     $('#pg-floors').addEventListener('click', e => {
       const q = e.target.closest('[data-q]'); if (q) { S.qty = q.dataset.q === 'max' ? 'max' : +q.dataset.q; Sound.click(); buildFloors(); return; }
       const b = e.target.closest('[data-buy]'); if (b) { buyFloor(+b.dataset.buy, b); return; }
@@ -1155,6 +1173,7 @@
     $('#pg-shop').addEventListener('click', e => { const b = e.target.closest('[data-pack], [data-sp]'); if (b && !b.classList.contains('off')) { Sound.click(); startRecharge(b.dataset.pack || b.dataset.sp); } });
     document.addEventListener('pointerdown', () => Sound.unlock(), { once: true });
     document.addEventListener('visibilitychange', () => {
+      if (passive) return;
       if (document.hidden) { save(); Cloud.push(); return; }
       const gap = now() - S.lastSeen;
       lastFrame = performance.now();
@@ -1492,6 +1511,23 @@
   })();
   if (SANDBOX) Splash.done();
 
+  function guardTabs() {
+    if (SANDBOX || typeof BroadcastChannel !== 'function') return;
+    const id = Math.random().toString(36).slice(2);
+    let bc;
+    try { bc = new BroadcastChannel('erika-tabs'); } catch (e) { return; }
+    bc.onmessage = e => {
+      if (!e.data || e.data.type !== 'hello' || e.data.id === id || passive) return;
+      passive = true;
+      const el = document.createElement('div');
+      el.id = 'tabGuard';
+      el.innerHTML = `<div class="tg-box"><div class="tg-crown">♛</div><b>ERIKA 百貨已在另一個視窗開啟</b><p>為了保護妳的進度，這個視窗先暫停，不會存檔。</p><button class="btn goldb" id="tgResume">在這裡繼續玩</button></div>`;
+      document.body.appendChild(el);
+      el.querySelector('#tgResume').addEventListener('click', () => location.reload());
+    };
+    bc.postMessage({ type: 'hello', id });
+  }
+
   let started = false;
   function start(hot) {
     if (started) return;
@@ -1501,6 +1537,7 @@
     const src = SANDBOX ? null : hot && hot.v === 1 && (!local || (hot.lastSeen || 0) >= (local.lastSeen || 0)) ? hot : local;
     S = hydrate(SANDBOX ? { coins: 5e9, gems: 99999, tickets: 30, hint: false, daily: { last: dayKey(), streak: 1 }, floors: [60, 50, 40, 30, 20, 10, 5, 0, 0, 0, 0, 0], st: { life: 1e10 }, rech: { total: 3000, count: 5, log: [] } } : src);
     if (SANDBOX) { S.st.lvl = level(); S.st.title = titleIdx(); }
+    guardTabs();
     bind();
     buildHome(); buildBoosts(); go('home');
     updateHudFast(); updateHudSlow();

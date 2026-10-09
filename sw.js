@@ -1,5 +1,5 @@
 // ERIKA 百貨貴婦 — 離線快取（改版時把 VERSION 加一）
-const VERSION = 'erika-v2';
+const VERSION = 'erika-v3';
 const CORE = [
   './', 'index.html', 'manifest.webmanifest',
   'css/style.css', 'css/kingdom.css', 'css/games/match3.css', 'css/games/arena.css', 'css/games/cards.css', 'css/games/royale.css', 'css/games/mahjong.css',
