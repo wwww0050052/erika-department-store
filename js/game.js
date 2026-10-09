@@ -165,7 +165,7 @@
       hiss(d = 0.1, v = 0.05, hp = 3000, delay = 0) { play(t => noise(t + delay, d, v, hp)); },
     };
   })();
-  const vib = ms => { if (S.set.vib && navigator.vibrate) try { navigator.vibrate(ms); } catch (e) { /* 不支援 */ } };
+  const vib = ms => { if (S.set.vib && navigator.vibrate && (!navigator.userActivation || navigator.userActivation.hasBeenActive)) try { navigator.vibrate(ms); } catch (e) { /* 不支援 */ } };
 
   // ================= 粒子特效（canvas） =================
   const FX = (() => {

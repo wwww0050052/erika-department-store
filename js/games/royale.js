@@ -2232,21 +2232,22 @@
       if (c) { c.t = frameNo; return c.cv; }
       return null;
     }
-    function buildChunks(maxN) {
+    function buildChunks(maxN, budget = 6) {
       if (!want.length) return;
       want.sort((a, b) => a[2] - b[2]);
-      const done = new Set();
+      const done = new Set(), t0 = performance.now();
       for (const [i, j] of want) {
         const k = i * 64 + j;
         if (done.has(k) || chunks.has(k)) continue;
-        if (maxN-- <= 0) break;
+        if (maxN-- <= 0 || performance.now() - t0 > budget) break;
         done.add(k);
         const s = chunks.cs, c = mkCv(CH * s, CH * s), x = c.getContext('2d');
         x.setTransform(s, 0, 0, s, -i * CH * s, -j * CH * s);
         drawWorld(x, getMap(), { x0: i * CH, y0: j * CH, x1: (i + 1) * CH, y1: (j + 1) * CH }, 1);
         chunks.set(k, { cv: c, t: frameNo });
       }
-      want.length = 0;
+      // 沒做完的留到下一格（只保留還沒做的）
+      want = want.filter(w => !chunks.has(w[0] * 64 + w[1])).slice(0, 60);
       if (chunks.size > 44) { const arr = [...chunks.entries()].sort((a, b) => a[1].t - b[1].t); for (let k = 0; k < arr.length - 40; k++) chunks.delete(arr[k][0]); }
     }
     function prewarm(x, y, r) {
@@ -2419,7 +2420,7 @@
       updateCam(dt);
       render(ts / 1000);
       updateHud(dt);
-      buildChunks(phase === 'ground' ? 2 : 3);
+      buildChunks(phase === 'ground' ? 2 : 1, phase === 'ground' ? 7 : 5);
       if (!document.hidden) raf = requestAnimationFrame(frame);
     }
     function feedInput() {
@@ -2485,7 +2486,7 @@
     }
     function dmgText(x, y, v, head, mine) {
       if (texts.length > 24) texts.shift();
-      texts.push({ x: x + (Math.random() - 0.5) * 16, y: y - 18, vy: -60, t: 0, life: head ? 1.1 : 0.8, v: Math.round(v), head, mine });
+      texts.push({ x: x + (Math.random() - 0.5) * 30, y: y - 14 - Math.random() * 14, vy: -60 - Math.random() * 25, t: 0, life: head ? 1.1 : 0.8, v: Math.round(v), head, mine });
     }
     function handleEvents() {
       for (const e of m.ev) {
@@ -2797,7 +2798,7 @@
         const j0 = Math.max(0, Math.floor(vy0 / CH)), j1 = Math.min(Math.ceil(MAP / CH) - 1, Math.floor(vy1 / CH));
         for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {
           const c = getChunk(i, j);
-          if (!c) { want.push([i, j, Math.hypot((i + 0.5) * CH - cam.x, (j + 0.5) * CH - cam.y)]); continue; }
+          if (!c) { if (ca > 0.25 || phase === 'ground') want.push([i, j, Math.hypot((i + 0.5) * CH - cam.x, (j + 0.5) * CH - cam.y) - (phase === 'ground' ? 1e4 : 0)]); continue; }
           const dx = Math.floor(ox + i * CH * z), dy = Math.floor(oy + j * CH * z);
           ctx.drawImage(c, dx, dy, Math.ceil(ox + (i + 1) * CH * z) - dx, Math.ceil(oy + (j + 1) * CH * z) - dy);
         }
@@ -2906,7 +2907,7 @@
         const s = (1 + alt * 0.8) * (cam.z < baseZ * 0.5 ? Math.min(3, baseZ * 0.5 / cam.z) : 1) * (mine ? 1 : 0.8);
         const yo = -alt * 180;
         ctx.fillStyle = 'rgba(60,20,50,.2)'; ctx.beginPath(); ctx.ellipse(p.x, p.y, 14 * (1 - alt * 0.6), 6 * (1 - alt * 0.6), 0, 0, TAU); ctx.fill();
-        if (p.chute.t > 0.9) drawCanopy(p.x, p.y + yo - 40 * s, 40 * s, mine ? '#ff7fae' : hueHex('#ff9cc0', (p.look * 47) % 360), '#ffffff', p.x, p.y + yo - 6 * s);
+        if (p.chute.t > 0.9) drawCanopy(p.x, p.y + yo - 40 * s, 40 * s, p._cc || (p._cc = mine ? '#ff7fae' : hueHex('#ff9cc0', (p.look * 47) % 360)), '#ffffff', p.x, p.y + yo - 6 * s);
         const tk = tokOf(p);
         if (tk) { const S = (VR + 4) * 2 * s; ctx.drawImage(tk, p.x - S / 2, p.y + yo - S / 2, S, S); }
         if (mine) { ctx.strokeStyle = '#ffd36b'; ctx.lineWidth = 2.4 * zw; ctx.beginPath(); ctx.arc(p.x, p.y + yo, (VR + 6) * s, 0, TAU); ctx.stroke(); }
@@ -3089,7 +3090,7 @@
     // ---- 沙盒測試用 ----
     function exposeDebug() {
       window.__royale = {
-        get m() { return m; }, get phase() { return phase; }, get scene() { return scene; },
+        get m() { return m; }, get phase() { return phase; }, get scene() { return scene; }, get frames() { return frameNo; }, get paused() { return paused; },
         jumpNow() { H.input.jump = true; m.t = Math.max(m.t, m.plane.dur * (m.plane.span[0] + 0.05)); },
         skipToGround(x, y) {
           if (H.state === 'plane') startChute(m, H);

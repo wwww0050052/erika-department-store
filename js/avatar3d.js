@@ -393,8 +393,10 @@ function frameCamera() {
   if (!host) return;
   const w = host.clientWidth || 1, h = host.clientHeight || 1;
   renderer.setSize(w, h, false);
+  setupCam(camera, host.dataset.frame || 'full', w, h);
+}
+function setupCam(camera, kind, w, h) {
   camera.aspect = w / h;
-  const kind = host.dataset.frame || 'full';
   if (kind === 'bust') {
     camera.fov = 22;
     const head = hb('head').getWorldPosition(new THREE.Vector3());
@@ -417,6 +419,40 @@ function frameCamera() {
     camera.lookAt(0, mid, 0);
   }
   camera.updateProjectionMatrix();
+}
+
+// 離屏拍照：畫到 render target 再讀回像素（線性 → sRGB、反預乘 alpha、上下翻轉）
+let snapRT = null, snapCam = null, snapCanvas = null;
+const SRGB_LUT = new Uint8ClampedArray(256);
+for (let i = 0; i < 256; i++) { const c = i / 255; SRGB_LUT[i] = Math.round(255 * (c <= 0.0031308 ? c * 12.92 : 1.055 * Math.pow(c, 1 / 2.4) - 0.055)); }
+function offscreenShot(kind, w, h) {
+  snapCam = snapCam || new THREE.PerspectiveCamera(22, 1, 0.05, 30);
+  setupCam(snapCam, kind, w, h);
+  if (!snapRT || snapRT.width !== w || snapRT.height !== h) { snapRT?.dispose(); snapRT = new THREE.WebGLRenderTarget(w, h, { samples: 4 }); }
+  const prevTarget = renderer.getRenderTarget(), prevClear = renderer.getClearAlpha();
+  renderer.setRenderTarget(snapRT);
+  renderer.setClearColor(0x000000, 0); renderer.clear();
+  renderer.render(scene, snapCam);
+  const px = new Uint8Array(w * h * 4);
+  renderer.readRenderTargetPixels(snapRT, 0, 0, w, h, px);
+  renderer.setRenderTarget(prevTarget); renderer.setClearAlpha(prevClear);
+  snapCanvas = snapCanvas || document.createElement('canvas');
+  snapCanvas.width = w; snapCanvas.height = h;
+  const ctx = snapCanvas.getContext('2d'), img = ctx.createImageData(w, h), d = img.data;
+  for (let y = 0; y < h; y++) {
+    const src = (h - 1 - y) * w * 4, dst = y * w * 4;
+    for (let x = 0; x < w * 4; x += 4) {
+      const a = px[src + x + 3];
+      if (!a) continue;
+      const k = 255 / a;
+      d[dst + x] = SRGB_LUT[Math.min(255, Math.round(px[src + x] * k))];
+      d[dst + x + 1] = SRGB_LUT[Math.min(255, Math.round(px[src + x + 1] * k))];
+      d[dst + x + 2] = SRGB_LUT[Math.min(255, Math.round(px[src + x + 2] * k))];
+      d[dst + x + 3] = a;
+    }
+  }
+  ctx.putImageData(img, 0, 0);
+  return snapCanvas.toDataURL('image/png');
 }
 
 // ---------------- 公開介面 ----------------
@@ -463,6 +499,7 @@ async function init() {
     acc.headBone = raw('head'); acc.neckBone = raw('upperChest') || raw('chest'); acc.handBone = raw('rightHand');
     pose(0); vrm.update(1 / 60); vrm.springBoneManager?.reset();
     for (let i = 0; i < 90; i++) vrm.update(1 / 60);
+    try { await renderer.compileAsync(scene, camera); } catch (e) { /* 不支援就第一次畫的時候編譯 */ }
     S3.ready = true;
     if (Erika3D._pending) Erika3D.setOutfit(Erika3D._pending);
     window.dispatchEvent(new Event('erika3d-ready'));
@@ -535,15 +572,7 @@ const Erika3D = {
   // 截圖（給頭像、晉升對話框用）：kind = 'bust' | 'full'
   snapshot(kind = 'bust', w = 256, h = 256) {
     if (!S3.ready) return null;
-    const prev = host, keepSize = renderer.getSize(new THREE.Vector2());
-    const fake = { clientWidth: w, clientHeight: h, dataset: { frame: kind } };
-    host = fake; frameCamera();
-    renderer.render(scene, camera);
-    const url = renderer.domElement.toDataURL('image/png');
-    host = prev;
-    renderer.setSize(keepSize.x, keepSize.y, false);
-    if (prev) { frameCamera(); renderer.render(scene, camera); }
-    return url;
+    return offscreenShot(kind, w, h);
   },
 };
 window.Erika3D = Erika3D;

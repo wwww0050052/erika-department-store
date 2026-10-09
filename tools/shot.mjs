@@ -18,7 +18,7 @@ if (!url || !out) { console.error('用法：node tools/shot.mjs <網址> <輸出
 const EDGE = ['C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe', 'C:/Program Files/Google/Chrome/Application/chrome.exe'].find(p => fs.existsSync(p));
 const port = 9300 + Math.floor(Math.random() * 600);
 const prof = fs.mkdtempSync(path.join(os.tmpdir(), 'erika-shot-'));
-const proc = spawn(EDGE, ['--headless=new', '--disable-gpu-sandbox', '--no-first-run', '--no-default-browser-check', '--hide-scrollbars', '--mute-audio',
+const proc = spawn(EDGE, ['--headless=new', '--disable-gpu-sandbox', '--no-first-run', '--no-default-browser-check', '--hide-scrollbars', '--mute-audio', '--disable-background-timer-throttling', '--disable-renderer-backgrounding', '--disable-backgrounding-occluded-windows',
   `--remote-debugging-port=${port}`, `--user-data-dir=${prof}`, `--window-size=${W},${H}`, 'about:blank'], { stdio: 'ignore' });
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 let ws, seq = 0;
@@ -44,6 +44,7 @@ try {
   await send('Runtime.enable'); await send('Log.enable'); await send('Page.enable');
   await send('Emulation.setDeviceMetricsOverride', { width: W, height: H, deviceScaleFactor: 2, mobile: true });
   await send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 5 });
+  try { await send('Emulation.setFocusEmulationEnabled', { enabled: true }); } catch { /* 舊版瀏覽器沒有 */ }
   await send('Page.navigate', { url });
   await sleep(WAIT);
   const shot = async file => { const r = await send('Page.captureScreenshot', { format: 'png' }); fs.writeFileSync(file, Buffer.from(r.data, 'base64')); console.log('截圖', file); };
