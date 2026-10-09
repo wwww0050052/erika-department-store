@@ -8,6 +8,7 @@
   const now = () => Date.now();
   const ITEM = Object.fromEntries(ITEMS.map(i => [i.id, i]));
   const SAVE_KEY = 'erika-save-v1';
+  const SANDBOX = /[?&]sandbox\b/.test(location.search); // 測試用：不讀寫存檔、資源給滿
   const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
   const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const rnd = (a, b) => a + Math.random() * (b - a);
@@ -83,7 +84,7 @@
     return s;
   }
   function loadLocal() { try { const raw = localStorage.getItem(SAVE_KEY); if (raw) return JSON.parse(raw); } catch (e) { /* 無痕模式等 */ } return null; }
-  function save() { S.savedAt = now(); S.lastSeen = now(); try { localStorage.setItem(SAVE_KEY, JSON.stringify(S)); } catch (e) { /* 存不了就算了 */ } }
+  function save() { if (SANDBOX) return; S.savedAt = now(); S.lastSeen = now(); try { localStorage.setItem(SAVE_KEY, JSON.stringify(S)); } catch (e) { /* 存不了就算了 */ } }
 
   // ================= 經濟 =================
   const MS = [10, 25, 50, 100, 150, 200, 250, 300, 400, 500, 600, 700, 800, 900, 1000];
@@ -94,11 +95,15 @@
   const floorCost = (i, l, k = 1) => { const b = FLOORS[i].cost * Math.pow(1.15, l); return k === 1 ? b : b * (Math.pow(1.15, k) - 1) / 0.15; };
   const maxBuy = (i, l, c) => { const b = FLOORS[i].cost * Math.pow(1.15, l); return c < b ? 0 : Math.floor(Math.log(c * 0.15 / b + 1) / Math.log(1.15)); };
   const nextFloor = () => S.floors.findIndex(l => l === 0);
+  const floorReq = i => { try { return K()?.floorUnlockReq?.(i) || 0; } catch (e) { return 0; } };
+  const townLv = () => { try { return K()?.townLevel?.() ?? 99; } catch (e) { return 99; } };
+  const floorOpenable = i => townLv() >= floorReq(i);
   const rawIps = () => S.floors.reduce((a, l, i) => a + floorInc(i, l), 0);
   const fashionBonus = () => { let b = 0; for (const id in S.items) if (ITEM[id]) b += ITEM[id].bonus || 0; return b; };
   const vipLv = (t = S.rech.total) => { let v = 0; VIP.forEach((x, i) => { if (t >= x) v = i + 1; }); return v; };
   const doubleOn = () => S.boost.double > now();
-  const baseMult = () => (1 + fashionBonus()) * (1 + 0.05 * vipLv()) * (1 + 0.1 * S.stars);
+  const kingdomMult = () => { try { const m = K()?.incomeMult?.(); return m > 0 && isFinite(m) ? m : 1; } catch (e) { return 1; } };
+  const baseMult = () => (1 + fashionBonus()) * (1 + 0.05 * vipLv()) * (1 + 0.1 * S.stars) * kingdomMult();
   const mult = () => baseMult() * (doubleOn() ? 2 : 1);
   const ips = () => rawIps() * mult();
   const tapCost = () => 20 * Math.pow(1.55, S.tapLv);
@@ -156,6 +161,8 @@
       drum() { play(t => { for (let i = 0; i < 6; i++) noise(t + i * 0.11, 0.07, 0.07, 1200); }); },
       ssr() { play(t => { [0, 4, 7, 11, 14, 19].forEach((n, i) => tone(nf(n - 5), t + i * 0.08, 1, 'sine', 0.09)); noise(t, 1.2, 0.035, 7000); }); },
       ding() { play(t => { tone(nf(7), t, 0.4, 'sine', 0.07); tone(nf(12), t + 0.12, 0.5, 'sine', 0.07); }); },
+      beep(f, d = 0.15, type = 'sine', v = 0.1, delay = 0) { play(t => tone(f, t + delay, d, type, v)); },
+      hiss(d = 0.1, v = 0.05, hp = 3000, delay = 0) { play(t => noise(t + delay, d, v, hp)); },
     };
   })();
   const vib = ms => { if (S.set.vib && navigator.vibrate) try { navigator.vibrate(ms); } catch (e) { /* 不支援 */ } };
@@ -311,26 +318,79 @@
   }
 
   // ================= 分頁 =================
-  const PAGES = [['home', '百貨', 'home'], ['floors', '樓層', 'floors'], ['wardrobe', '衣櫥', 'wardrobe'], ['gacha', '福袋', 'gift'], ['shop', '儲值', 'gem']];
+  const PAGES = [['home', '百貨', 'home'], ['kingdom', '王國', 'castle'], ['floors', '樓層', 'floors'], ['wardrobe', '衣櫥', 'wardrobe'], ['play', '娛樂', 'play'], ['shop', '儲值', 'gem']];
+  const SUBPAGES = { gacha: 'play' }; // 子頁 → 亮起哪個分頁
+  const K = () => window.ErikaKingdom; // Kingshot 式王國模組（js/kingdom.js）
+  let kingdomMounted = false;
   let page = 'home';
   function go(p) {
+    if (page === 'kingdom' && p !== 'kingdom') { try { K()?.hide?.(); } catch (e) { console.error(e); } }
     page = p;
-    for (const [id] of PAGES) { $('#pg-' + id).classList.toggle('on', id === p); $(`.tab[data-p="${id}"]`).classList.toggle('on', id === p); }
+    const tabOf = SUBPAGES[p] || p;
+    for (const id of [...PAGES.map(x => x[0]), ...Object.keys(SUBPAGES)]) $('#pg-' + id).classList.toggle('on', id === p);
+    for (const [id] of PAGES) $(`.tab[data-p="${id}"]`).classList.toggle('on', id === tabOf);
+    if (p === 'kingdom') {
+      try {
+        if (!kingdomMounted && K()?.mount) { K().mount($('#pg-kingdom'), API); kingdomMounted = true; }
+        K()?.show?.();
+      } catch (e) { console.error(e); $('#pg-kingdom').innerHTML = '<div class="pane"><p class="fine">王國正在整修中，請稍後再來。</p></div>'; }
+    }
     if (p === 'floors') buildFloors();
     if (p === 'wardrobe') buildWardrobe();
     if (p === 'gacha') buildGacha();
+    if (p === 'play') buildPlay();
     if (p === 'shop') buildShop();
     if (p !== 'home') $('#pg-' + p).scrollTop = 0;
+    attach3D();
   }
 
   // ================= 首頁：舞台 =================
   function eqItems(eq = S.eq) { const o = {}; for (const c of CATS) o[c.id] = eq[c.id] ? ITEM[eq[c.id]] : null; return o; }
-  function renderAvatar() {
-    const eq = eqItems();
-    $('#avatar').innerHTML = Art.avatar(eq);
-    $('#meAva').innerHTML = Art.avatar(eq, { headOnly: true, vb: '70 40 100 100' });
-    const wd = $('#wdAva'); if (wd) wd.innerHTML = Art.avatar(eq);
+  const E3 = () => (window.Erika3D && window.Erika3D.ready ? window.Erika3D : null);
+  // 單品圖示：已經拍過 3D 縮圖就直接用，否則先用 2D（force=true 時當場拍）
+  function iconHTML(it, force) {
+    const e = E3();
+    const url = e && (force ? e.thumb(it) : e._thumbCached && e._thumbCached(it.id));
+    return url ? `<img class="iv iv3d" src="${url}" alt="">` : Art.itemIcon(it);
   }
+  let thumbGen = 0;
+  async function upgradeThumbs(root) {
+    const e = E3();
+    if (!e || !root) return;
+    const gen = thumbGen;
+    for (const el of root.querySelectorAll('[data-thumb]')) {
+      if (el.querySelector('.iv3d')) continue;
+      await new Promise(r => setTimeout(r, 16));
+      if (gen !== thumbGen || !el.isConnected) return;
+      const url = e.thumb(ITEM[el.dataset.thumb]);
+      if (url) el.innerHTML = `<img class="iv iv3d" src="${url}" alt="">`;
+    }
+  }
+  // 立繪 HTML：3D 版用截圖，否則用 2D 向量畫
+  function portraitHTML(kind = 'full') {
+    const e = E3();
+    const url = e && e.snapshot(kind, kind === 'full' ? 300 : 256, kind === 'full' ? 500 : 256);
+    return url ? `<img class="p3d" src="${url}" alt="">` : Art.avatar(eqItems());
+  }
+  function renderAvatar() {
+    const eq = eqItems(), e = E3();
+    if (e) {
+      e.setOutfit(eq);
+      $('.avatar-wrap').hidden = true;
+      const url = e.snapshot('bust', 128, 128);
+      $('#meAva').innerHTML = url ? `<img src="${url}" alt="">` : Art.avatar(eq, { headOnly: true, vb: '70 40 100 100' });
+    } else {
+      $('#avatar').innerHTML = Art.avatar(eq);
+      $('#meAva').innerHTML = Art.avatar(eq, { headOnly: true, vb: '70 40 100 100' });
+      const wd = $('#wdAva'); if (wd) wd.innerHTML = Art.avatar(eq);
+    }
+  }
+  function attach3D() {
+    const e = window.Erika3D;
+    if (!e) return;
+    e.attach(page === 'home' ? $('#stage3d') : page === 'wardrobe' ? $('#wdAva') : null);
+  }
+  window.addEventListener('erika3d-ready', () => { renderAvatar(); attach3D(); if (page === 'wardrobe') { const wd = $('#wdAva'); if (wd) { wd.querySelectorAll('svg').forEach(x => x.remove()); } } });
   function buildHome() {
     const c = city();
     $('#facade').innerHTML = Art.facade(c);
@@ -341,6 +401,7 @@
   let lastSquish = 0;
   function squish() {
     const t = performance.now(); if (t - lastSquish < 70 || REDUCED) return; lastSquish = t;
+    if (E3()) { E3().react('tap'); return; }
     $('#avatar').animate([{ transform: 'scale(1,1)' }, { transform: 'scale(1.035,.965)' }, { transform: 'scale(.99,1.01)' }, { transform: 'scale(1,1)' }], { duration: 200, easing: 'ease-out' });
   }
 
@@ -353,8 +414,9 @@
     S.st.taps++;
     if (!feverOn()) { S.fever = Math.min(100, S.fever + (manual ? 2.4 : 1.1)); if (S.fever >= 100) startFever(); }
     if (manual) lastTapAt = performance.now();
-    if (page === 'home' && modalCount === 0) FX.tap(x, y, v, crit, manual);
+    if (page === 'home' && modalCount === 0 && !overlayCount) FX.tap(x, y, v, crit, manual);
     if (manual) {
+      event('tap');
       squish(); Sound.tap(S.fever); vib(crit ? 25 : 8);
       if (S.hint && ++hintTaps >= 8) { S.hint = false; $('#tapHint').hidden = true; }
     } else if (page === 'home' && modalCount === 0 && (autoFlip = !autoFlip)) Sound.tap(S.fever, 0.45);
@@ -375,11 +437,11 @@
   let friendTimer = rnd(15, 28), friendEl = null, friendUntil = 0;
   function spawnFriend() {
     const st = $('#stage'), right = Math.random() < 0.5;
-    const hair = pick(ITEMS.filter(i => i.cat === 'hair')), hd = Math.random() < 0.65 ? pick(ITEMS.filter(i => i.cat === 'head')) : null;
+    const who = pick(CAST_DEF.slice(1));
     const el = document.createElement('button');
     el.className = 'friend' + (right ? ' right' : '');
     el.setAttribute('aria-label', '接待貴婦閨蜜');
-    el.innerHTML = `<span class="f-face">${Art.avatar({ hair, head: hd }, { headOnly: true, vb: '62 24 116 116' })}</span><span class="f-say">${pick(FRIEND_LINES)}<small>點我接待 ♥</small></span>`;
+    el.innerHTML = `<span class="f-face"><img src="assets/cast/${who.model}-joy.webp" alt=""></span><span class="f-say"><b class="f-name">${who.name}</b>${pick(FRIEND_LINES)}<small>點我接待 ♥</small></span>`;
     el.style.top = rnd(20, 44) + '%';
     el.style[right ? 'right' : 'left'] = '10px';
     el.addEventListener('pointerdown', e => { e.stopPropagation(); e.preventDefault(); greetFriend(el, e.clientX, e.clientY); });
@@ -388,6 +450,7 @@
   }
   function greetFriend(el, x, y) {
     S.st.friends++;
+    event('friend');
     const r = Math.random();
     let msg;
     if (r < 0.2) { const g = Math.floor(rnd(2, 6)); S.gems += g; msg = `閨蜜送妳 ${g} 顆粉鑽！`; FX.fly('gem', x, y, g, '#gemIc'); }
@@ -439,7 +502,7 @@
     let best = null;
     const m = mult(), nf = nextFloor();
     S.floors.forEach((l, i) => {
-      if (l === 0 && i !== nf) return;
+      if (l === 0 && (i !== nf || !floorOpenable(i))) return;
       const c = floorCost(i, l); if (c > S.coins) return;
       let score = (floorInc(i, l + 1) - floorInc(i, l)) * m / c;
       if (l === 0) score *= 3;
@@ -474,7 +537,7 @@
           <button class="btn" data-buy="${i}"><span class="bl">升級</span><small>${COIN()}<span class="bc"></span></small></button></div>`;
       } else if (i === nf) {
         h += `<div class="row-card locked" data-row="${i}"><div class="row-ic">${Art.floorIcon(f.icon, f.tint)}<span class="fno">${i + 1}F</span></div>
-          <div class="row-main"><div class="t"><b>${f.name}</b><em>${f.en}</em></div><div class="inc">${f.line}</div><div class="inc">開幕後每秒 <b class="incv"></b></div></div>
+          <div class="row-main"><div class="t"><b>${f.name}</b><em>${f.en}</em></div><div class="inc">${f.line}</div><div class="inc">開幕後每秒 <b class="incv"></b></div>${floorReq(i) > townLv() ? `<div class="ms" style="color:var(--rose-deep)">需要百貨本館 Lv.${floorReq(i)}（到王國升級）</div>` : ''}</div>
           <button class="btn goldb" data-buy="${i}"><span>開幕</span><small>${COIN()}<span class="bc"></span></small></button></div>`;
       }
     });
@@ -528,9 +591,11 @@
   function buyFloor(i, btn) {
     const lv = S.floors[i];
     if (lv === 0 && i !== nextFloor()) return;
+    if (lv === 0 && !floorOpenable(i)) { shake(btn); Sound.err(); toast(`要先把「百貨本館」升到 Lv.${floorReq(i)}，到王國去蓋吧！`); return; }
     const k = qtyFor(i), c = floorCost(i, lv, k);
     if (S.coins < c) { shake(btn); Sound.err(); return; }
     S.coins -= c; S.floors[i] += k;
+    event('floor_up', { n: k });
     Sound.buy(); vib(10);
     const [x, y] = centerOf(btn); FX.burst(x, y, 12, ['spark', 'confetti']);
     if (lv === 0) { toast(`${FLOORS[i].name} 盛大開幕！`, 'gold'); FX.rain('confetti', 60); buildFloors(); }
@@ -555,22 +620,25 @@
   };
   function buildWardrobe() {
     const pane = $('#pg-wardrobe .pane');
-    pane.innerHTML = `<div class="wd-top"><div class="wd-ava" id="wdAva">${Art.avatar(eqItems())}</div>
+    pane.innerHTML = `<div class="wd-show"><div class="wd-spot"></div><div class="wd-ava" id="wdAva" data-frame="full">${E3() ? '' : Art.avatar(eqItems())}</div>
       <div class="wd-stat"><div class="eyebrow">Fashion Index</div><div class="big">+${Math.round(fashionBonus() * 100)}%</div>
       <div class="note">單品「買了就加成」，穿不穿都算。換裝只是為了美美的！</div><div class="cnt">收藏 ${ownedCount()} / ${ITEMS.length} 件</div></div></div>
       <div class="cats" id="cats" role="tablist">${CATS.map(c => `<button role="tab" data-c="${c.id}" class="${c.id === wdCat ? 'on' : ''}">${c.name}<span class="dot" hidden></span></button>`).join('')}</div>
       <div class="grid3" id="wdGrid"></div>`;
     buildGrid();
+    attach3D();
   }
   function buildGrid() {
     const list = ITEMS.filter(i => i.cat === wdCat).sort(itemOrder);
+    thumbGen++;
     $('#wdGrid').innerHTML = list.map(it => {
       const own = !!S.items[it.id], eq = S.eq[it.cat] === it.id;
       return `<button class="item ${eq ? 'eq' : ''} ${own ? '' : 'notown'} ${it.gacha && !own ? 'gacha-lock' : ''}" data-i="${it.id}">
-        ${it.gacha ? `<span class="rar ${it.gacha}">${it.gacha}</span>` : ''}<span class="ii">${Art.itemIcon(it)}</span>
+        ${it.gacha ? `<span class="rar ${it.gacha}">${it.gacha}</span>` : ''}<span class="ii" data-thumb="${it.id}">${iconHTML(it)}</span>
         <span class="nm">${it.name}</span><span class="bn">${it.bonus ? `收益 +${Math.round(it.bonus * 100)}%` : '基本款'}</span><span class="pr"></span></button>`;
     }).join('');
     updateWardrobe();
+    upgradeThumbs($('#wdGrid'));
   }
   function updateWardrobe() {
     $$('#wdGrid .item').forEach(el => {
@@ -598,7 +666,9 @@
   }
   function ownItem(it, el) {
     S.items[it.id] = 1; S.eq[it.cat] = it.id;
+    event('item_buy');
     Sound.buy(); vib(15);
+    if (E3()) setTimeout(() => E3() && E3().react('buy'), 50);
     if (el) { const [x, y] = centerOf(el); FX.burst(x, y, 24); }
     toast(`入手「${it.name}」收益 +${Math.round(it.bonus * 100)}%`, 'gold');
     renderAvatar(); if (page === 'wardrobe') buildWardrobe();
@@ -610,15 +680,16 @@
   function buildGacha() {
     const pool = ITEMS.filter(i => i.gacha).sort((a, b) => RANK[b.gacha] - RANK[a.gacha]);
     const got = pool.filter(i => S.items[i.id]).length;
-    $('#pg-gacha .pane').innerHTML = `<div class="gacha-hero"><div class="eyebrow">Lucky Bag</div><h2>ERIKA 精品福袋</h2>
+    $('#pg-gacha .pane').innerHTML = `<button class="btn ghost back-link" data-back="play">${Art.icon('back')}<span>回娛樂城</span></button><div class="gacha-hero"><div class="eyebrow">Lucky Bag</div><h2>ERIKA 精品福袋</h2>
       <div class="sub">每次必得一件時尚單品・十連抽保底 SR 以上</div>
       <div id="giftWrap">${Art.giftBox()}</div>
       <div class="pull-row"><button class="btn gemb" data-pull="1">單抽<small id="pull1Cost"></small></button><button class="btn goldb" data-pull="10">十連抽<small>${GEM()}450</small></button></div>
       <div class="rates"><span><b class="rc-SSR">SSR</b> 5%</span><span><b class="rc-SR">SR</b> 20%</span><span><b class="rc-R">R</b> 75%</span><span>再抽 ${PITY - S.pity} 次必中 SSR</span></div></div>
       <div class="sec-h"><div><div class="eyebrow">Collection</div><h2>福袋圖鑑</h2></div><div class="sub">${got} / ${pool.length}</div></div>
-      <div class="coll">${pool.map(it => `<div class="c ${it.gacha} ${S.items[it.id] ? '' : 'no'}" title="${it.name}">${Art.itemIcon(it)}</div>`).join('')}</div>
+      <div class="coll">${pool.map(it => `<div class="c ${it.gacha} ${S.items[it.id] ? '' : 'no'}" title="${it.name}" data-thumb="${it.id}">${iconHTML(it)}</div>`).join('')}</div>
       <p class="fine">重複抽到的單品會自動換成金幣或粉鑽，不會浪費。</p>`;
     updateGacha();
+    upgradeThumbs($('#pg-gacha .coll'));
   }
   function updateGacha() {
     const el = $('#pull1Cost'); if (!el) return;
@@ -646,10 +717,11 @@
     for (const r of res) {
       if (S.items[r.it.id]) {
         if (r.rar === 'SSR') { S.gems += 30; r.dup = `重複 → ${GEM()}30`; }
-        else { const v = Math.max(r.rar === 'SR' ? 5000 : 500, ips0 * (r.rar === 'SR' ? 900 : 180)); gain(v); r.dup = `重複 → ${fmt(v)} 金幣`; }
+        else { const v = Math.max(r.rar === 'SR' ? 5000 : 500, ips0 * (r.rar === 'SR' ? 900 : 180)); gain(v); r.dup = `重複 → ${fmt(v)} 金幣`; if (r.rar === 'SR') { const h = pick(CAST_DEF).id; heroState(h).shards += 2; r.dup += '＋碎片×2'; } }
       } else { S.items[r.it.id] = 1; r.isNew = true; }
     }
     S.st.pulls += n;
+    event('gacha', { n });
     save(); Cloud.soon();
     const box = $('#giftWrap .giftbox');
     if (box) box.classList.add('opening');
@@ -665,7 +737,7 @@
     }, 750);
   }
   function showResults(res, n, hasSSR) {
-    const cards = res.map((r, i) => `<div class="rcard ${r.rar}" style="animation-delay:${i * 0.08}s"><span class="rar ${r.rar}">${r.rar}</span>${r.isNew ? '<span class="new">NEW</span>' : ''}${Art.itemIcon(r.it)}<span class="nm">${r.it.name}</span>${r.dup ? `<span class="dup">${r.dup}</span>` : `<span class="dup">收益 +${Math.round(r.it.bonus * 100)}%</span>`}</div>`).join('');
+    const cards = res.map((r, i) => `<div class="rcard ${r.rar}" style="animation-delay:${i * 0.08}s"><span class="rar ${r.rar}">${r.rar}</span>${r.isNew ? '<span class="new">NEW</span>' : ''}${iconHTML(r.it, true)}<span class="nm">${r.it.name}</span>${r.dup ? `<span class="dup">${r.dup}</span>` : `<span class="dup">收益 +${Math.round(r.it.bonus * 100)}%</span>`}</div>`).join('');
     modal({
       title: hasSSR ? '✦ 傳說級 SSR 入手 ✦' : '福袋開獎！',
       body: `<div class="result-grid ${n === 1 ? 'one' : ''}">${cards}</div>`,
@@ -691,6 +763,7 @@
       let state = '', label = ntd(p.ntd), cls = 'btn goldb';
       if (p.id === 'month' && S.month > now()) { state = `生效中・剩 ${Math.ceil((S.month - now()) / 86400e3)} 天`; label = '續購 ' + ntd(p.ntd); }
       if (p.id === 'debut' && S.debut) { state = '已購買'; cls = 'btn off'; label = '已購買'; }
+      if (p.id === 'pass' && pass().premium) { state = `第 ${pass().season} 季已啟用`; cls = 'btn off'; label = '已啟用'; }
       return `<div class="special"><div class="sp-ic">${p.id === 'month' ? Art.gem() : Art.ticket()}</div><div style="min-width:0"><b>${p.name}</b><p>${p.desc}</p>${state ? `<div class="state">${state}</div>` : ''}</div><button class="${cls}" data-sp="${p.id}">${label}</button></div>`;
     };
     $('#pg-shop .pane').innerHTML = `
@@ -717,9 +790,10 @@
   function startRecharge(id) {
     const info = packInfo(id), { p } = info;
     if (p.once && S.debut) return;
+    if (p.id === 'pass' && pass().premium) return;
     modal({
       title: '確認儲值',
-      body: `<div class="big-num">${GEM()} ${info.gems.toLocaleString()}</div>
+      body: `<div class="big-num">${info.gems ? `${GEM()} ${info.gems.toLocaleString()}` : `<span style="font-size:22px">${esc(p.name)}</span>`}</div>
         <dl class="pay-box"><dt>品項</dt><dd>${info.name}</dd><dt>金額</dt><dd>${ntd(p.ntd)}</dd>${info.first ? `<dt>首儲雙倍</dt><dd>+${(p.gems + p.bonus).toLocaleString()}</dd>` : ''}${p.tickets ? `<dt>福袋券</dt><dd>×${p.tickets}</dd>` : ''}<dt>付款方式</dt><dd>模擬付款</dd></dl>
         <div class="pay-note">模擬儲值：不會真的扣款，只會記錄金額</div>`,
       actions: [{ label: '取消', cls: 'ghost' }, { label: `確認付款 ${ntd(p.ntd)}`, fn: (close, m) => processPay(info, close, m) }],
@@ -739,12 +813,14 @@
       if (!info.special) S.first[p.id] = true;
       if (p.id === 'month') { S.month = Math.max(now(), S.month) + 30 * 86400e3; S.monthLast = dayKey(); }
       if (p.id === 'debut') { S.debut = true; S.tickets += p.tickets; S.boost.double = Math.max(now(), S.boost.double) + p.double; }
+      if (p.id === 'pass') { pass().premium = true; addPassXp(PASS_XP * 5); }
+      event('recharge');
       const v1 = vipLv();
       save(); Cloud.soon();
       Sound.cash(); vib([15, 30, 15]);
       const [x, y] = centerOf(m);
       FX.fly('gem', x, y, 14, '#gemIc'); FX.rain('confetti', 50);
-      m.innerHTML = `<h3>儲值成功！</h3><div class="big-num">${GEM()} +${info.gems.toLocaleString()}</div>
+      m.innerHTML = `<h3>儲值成功！</h3><div class="big-num">${info.gems ? `${GEM()} +${info.gems.toLocaleString()}` : '尊榮通行證已啟用'}</div>
         <p class="mb">${p.id === 'month' ? '月卡生效，明天起每天登入再領 100 粉鑽<br>' : ''}${p.id === 'debut' ? '福袋券 ×10、雙倍營收 24 小時已入帳<br>' : ''}累計儲值 <b>${ntd(S.rech.total)}</b>・VIP ${v1}</p>
         ${v1 > v0 ? `<p class="mb" style="color:var(--gold-deep);font-weight:800;margin-top:6px">升級 VIP ${v1}！收益 +${v1 * 5}%</p>` : ''}
         <div class="acts"><button class="btn goldb" id="payOk">太棒了</button></div>`;
@@ -808,6 +884,7 @@
     });
   }
   function achVal(k) {
+    if (k.startsWith('ev:')) return (S.ev && S.ev[k.slice(3)]) || 0;
     switch (k) {
       case 'taps': return S.st.taps; case 'life': return S.st.life; case 'floors': return S.floors.filter(l => l > 0).length;
       case 'items': return ownedCount(); case 'fevers': return S.st.fevers; case 'friends': return S.st.friends;
@@ -851,7 +928,7 @@
       if (ti > S.st.title) {
         S.st.title = ti;
         Sound.level(); FX.rain('confetti', 90);
-        modal({ queue: true, title: `晉升「${TITLES[ti][1]}」`, body: `<div class="profile-ava">${Art.avatar(eqItems())}</div><p class="mb">累計營收突破 ${fmt(TITLES[ti][0])}！<br>${esc(S.name)} 現在是 Lv.${lv} 的${TITLES[ti][1]}了</p>`, actions: [{ label: '我就是這麼美', cls: 'goldb' }] });
+        modal({ queue: true, title: `晉升「${TITLES[ti][1]}」`, body: `<div class="profile-ava">${portraitHTML('full')}</div><p class="mb">累計營收突破 ${fmt(TITLES[ti][0])}！<br>${esc(S.name)} 現在是 Lv.${lv} 的${TITLES[ti][1]}了</p>`, actions: [{ label: '我就是這麼美', cls: 'goldb' }] });
       } else { Sound.level(); toast(`升級！Lv.${lv} ${title()}`, 'gold'); if (page === 'home') FX.rain('confetti', 30); }
     }
   }
@@ -881,7 +958,7 @@
     const m = mult(), v = vipLv();
     modal({
       title: esc(S.name),
-      body: `<div class="eyebrow" style="text-align:center">Lv.${level()} · ${title()}</div><div class="profile-ava">${Art.avatar(eqItems())}</div>
+      body: `<div class="eyebrow" style="text-align:center">Lv.${level()} · ${title()}</div><div class="profile-ava">${portraitHTML('full')}</div>
         <dl class="stat-list">
           <dt>每秒收益</dt><dd class="hl">${fmt(ips())}</dd><dt>每次點擊</dt><dd>${fmt(tapValue())}</dd>
           <dt>時尚加成（${ownedCount()} 件單品）</dt><dd>+${Math.round(fashionBonus() * 100)}%</dd>
@@ -932,6 +1009,8 @@
     S = merge(fresh(), keep);
     S.hint = true; hintTaps = 0;
     $('#stage').classList.remove('fever');
+    try { K()?.reset?.(); } catch (e) { console.error(e); }
+    emit('reset');
     rebuildAll(); save(); Cloud.soon();
     toast('全新的貴婦人生開始了！', 'gold');
   }
@@ -955,10 +1034,13 @@
     vb.textContent = 'VIP ' + v; vb.classList.toggle('v0', v === 0);
     $('#gemTxt').textContent = S.gems.toLocaleString();
     $('#achDot').hidden = claimable().length === 0;
+    $('#misDot').hidden = !(missionsClaimable() + passClaimable());
     const nf = nextFloor();
-    $('.tab[data-p="floors"] .dot').hidden = !(nf >= 0 && S.coins >= floorCost(nf, 0));
+    $('.tab[data-p="floors"] .dot').hidden = !(nf >= 0 && floorOpenable(nf) && S.coins >= floorCost(nf, 0));
+    try { $('.tab[data-p="kingdom"] .dot').hidden = !K()?.badge?.(); } catch (e) { /* 王國模組還沒載入 */ }
     $('.tab[data-p="wardrobe"] .dot').hidden = !ITEMS.some(i => i.cost && !S.items[i.id] && S.coins >= i.cost);
-    $('.tab[data-p="gacha"] .dot').hidden = !(S.tickets > 0);
+    $('.tab[data-p="play"] .dot').hidden = !(S.tickets > 0);
+    if (overlayCount) updateOverlayChips();
     const canBranch = S.st.run >= BRANCH_MIN;
     $('#branchCta').hidden = !canBranch;
     if (canBranch) $('#branchStars').textContent = `★+${starsFor(S.st.run)}`;
@@ -1013,7 +1095,7 @@
     if (S.boost.auto > t) { autoAcc += dt * 8; while (autoAcc >= 1) { autoAcc--; autoTap(); } } else autoAcc = 0;
     if (S.boost.butler > t) { butlerAcc += dt; if (butlerAcc > 0.4) { butlerAcc = 0; for (let i = 0; i < 3 && butlerStep(); i++); } }
     if (page === 'home' && !document.hidden) {
-      if (!friendEl) { friendTimer -= dt; if (friendTimer <= 0 && modalCount === 0) spawnFriend(); }
+      if (!friendEl) { friendTimer -= dt; if (friendTimer <= 0 && modalCount === 0 && !overlayCount) spawnFriend(); }
       else if (t > friendUntil) { friendEl.remove(); friendEl = null; friendTimer = rnd(25, 55); }
     }
     S.lastSeen = t;
@@ -1031,6 +1113,7 @@
       if (page === 'floors') updateFloors();
       if (page === 'wardrobe') updateWardrobe();
       if (page === 'gacha') updateGacha();
+      try { K()?.tick?.(0.3, page === 'kingdom'); } catch (e) { console.error(e); }
     }
     if (saveAcc > 5) { saveAcc = 0; save(); if (now() - Cloud.lastPush > 90e3) Cloud.push(); }
     requestAnimationFrame(frame);
@@ -1045,6 +1128,8 @@
     $('#btnGems').addEventListener('click', () => { Sound.click(); go('shop'); });
     $('#btnProfile').addEventListener('click', () => { Sound.click(); openProfile(); });
     $('#btnAch').addEventListener('click', () => { Sound.click(); openAch(); });
+    $('#misIc').innerHTML = Art.icon('scroll', 'li');
+    $('#btnMis').addEventListener('click', () => { Sound.click(); openMissions(); });
     $('#btnSet').addEventListener('click', () => { Sound.click(); openSettings(); });
     $('#branchCta').addEventListener('pointerdown', e => e.stopPropagation());
     $('#branchCta').addEventListener('click', openBranch);
@@ -1065,7 +1150,8 @@
       const c = e.target.closest('[data-c]'); if (c) { wdCat = c.dataset.c; Sound.click(); $$('#cats button').forEach(x => x.classList.toggle('on', x === c)); buildGrid(); return; }
       const it = e.target.closest('[data-i]'); if (it) tapItem(ITEM[it.dataset.i], it);
     });
-    $('#pg-gacha').addEventListener('click', e => { const b = e.target.closest('[data-pull]'); if (b) pull(+b.dataset.pull); });
+    $('#pg-gacha').addEventListener('click', e => { if (e.target.closest('[data-back]')) { Sound.click(); go('play'); return; } const b = e.target.closest('[data-pull]'); if (b) pull(+b.dataset.pull); });
+    $('#pg-play').addEventListener('click', e => { const b = e.target.closest('[data-g]'); if (!b) return; const g = GAMES.find(x => x.id === b.dataset.g); if (g) openGame(g); });
     $('#pg-shop').addEventListener('click', e => { const b = e.target.closest('[data-pack], [data-sp]'); if (b && !b.classList.contains('off')) { Sound.click(); startRecharge(b.dataset.pack || b.dataset.sp); } });
     document.addEventListener('pointerdown', () => Sound.unlock(), { once: true });
     document.addEventListener('visibilitychange', () => {
@@ -1080,22 +1166,350 @@
     addEventListener('pagehide', () => { save(); Cloud.push(); });
   }
 
+  // ================= 娛樂城：小遊戲共用介面（window.ErikaAPI） =================
+  const CAST_DEF = [
+    { id: 'erika', model: 'victoria', name: '', title: '百貨老闆娘', color: '#f08bb0' },
+    { id: 'vivi', model: 'vivi', name: '薇薇', title: '甜點世家千金', color: '#8cc46a' },
+    { id: 'vita', model: 'vita', name: '維塔', title: '科技新貴偶像', color: '#3fb6e0' },
+    { id: 'chiyo', model: 'shibu', name: '千代', title: '財閥大小姐', color: '#e8613c' },
+    { id: 'shino', model: 'shino', name: '詩乃', title: '書香名門千金', color: '#5a6fd6' },
+    { id: 'fumi', model: 'fumiriya', name: '史利', title: '貼身管家', color: '#c9a35b' },
+  ];
+  const castOf = d => ({
+    id: d.id, name: d.id === 'erika' ? S.name : d.name, title: d.title, color: d.color,
+    face: (expr = 'neutral') => `assets/cast/${d.model}-${expr}.webp`, full: `assets/cast/${d.model}-full.webp`,
+  });
+  let overlayCount = 0;
+  const coinTarget = () => (overlayCount ? '.g-overlay:last-of-type .g-coins' : '#coinIc');
+  const gemTarget = () => (overlayCount ? '.g-overlay:last-of-type .g-gems' : '#gemIc');
+  function updateOverlayChips() {
+    $$('.g-coins').forEach(e => { e.textContent = fmt(S.coins); });
+    $$('.g-gems').forEach(e => { e.textContent = S.gems.toLocaleString(); });
+  }
+  function overlay(o = {}) {
+    const el = document.createElement('section');
+    el.className = 'g-overlay g-' + (o.id || 'x');
+    el.setAttribute('role', 'dialog');
+    el.setAttribute('aria-label', o.title || '');
+    el.innerHTML = `<header class="g-head"><button class="g-back" aria-label="返回">${Art.icon('back')}</button><b class="g-title"></b><span class="g-res"><span class="g-chip">${COIN()}<b class="g-coins num"></b></span><span class="g-chip">${GEM()}<b class="g-gems num"></b></span></span></header><div class="g-body"></div>`;
+    el.querySelector('.g-title').textContent = o.title || '';
+    $('#app').appendChild(el);
+    overlayCount++;
+    let closed = false;
+    const close = () => {
+      if (closed) return;
+      closed = true; overlayCount--;
+      el.classList.add('closing');
+      setTimeout(() => el.remove(), 220);
+      try { if (o.onClose) o.onClose(); } catch (e) { console.error(e); }
+      save(); updateHudSlow();
+    };
+    el.querySelector('.g-back').addEventListener('click', () => { Sound.click(); if (o.beforeClose && o.beforeClose() === false) return; close(); });
+    updateOverlayChips();
+    return { root: el, body: el.querySelector('.g-body'), close, setTitle: t => { el.querySelector('.g-title').textContent = t; } };
+  }
+  const BUS = {};
+  const emit = (ev, ...a) => { for (const fn of BUS[ev] || []) { try { fn(...a); } catch (e) { console.error(e); } } };
+  const GAMES = (window.ErikaGames = window.ErikaGames || []);
+  GAMES.push({ id: 'gacha', order: 90, name: '精品福袋', tagline: '抽 SSR 限定單品', color: '#f08bb0', color2: '#c9a35b', badge: '限定',
+    art: () => `<span style="position:absolute;inset:8% 6% 22%;display:grid;place-items:center">${Art.giftBox()}</span>`, open: () => go('gacha') });
+  const flyN = n => Math.min(18, 4 + Math.floor(Math.log10(n + 1)));
+  const API = (window.ErikaAPI = {
+    version: 1,
+    get coins() { return S.coins; },
+    get gems() { return S.gems; },
+    get tickets() { return S.tickets; },
+    get playerName() { return S.name; },
+    get sandbox() { return SANDBOX; },
+    get vip() { return vipLv(); },
+    get monthCard() { return S.month > now(); },
+    incomePerSec: () => Math.max(1, rawIps() * baseMult()),
+    betUnit: () => Math.max(100, Math.round(Math.max(1, rawIps() * baseMult()) * 60)),
+    spendCoins(n, el) {
+      n = Math.ceil(n);
+      if (!(n >= 0)) return false;
+      if (S.coins < n) { if (el) shake(el); Sound.err(); toast(`金幣不足，還差 ${fmt(n - S.coins)}`); return false; }
+      S.coins -= n; updateOverlayChips(); return true;
+    },
+    spendGems(n) { const ok = spendGems(n); updateOverlayChips(); return ok; },
+    addCoins(n, x, y) { if (!(n > 0)) return; gain(n); if (x != null) FX.fly('coin', x, y, flyN(n), coinTarget()); updateOverlayChips(); },
+    payout(n, x, y) { if (!(n > 0)) return; S.coins += n; if (x != null) FX.fly('coin', x, y, flyN(n), coinTarget()); updateOverlayChips(); },
+    addGems(n, x, y) { if (!(n > 0)) return; S.gems += Math.floor(n); if (x != null) FX.fly('gem', x, y, Math.min(14, 3 + Math.floor(n / 10)), gemTarget()); updateOverlayChips(); },
+    addTickets(n) { if (n > 0) S.tickets += Math.floor(n); },
+    fmt, esc, toast, shake, twoTap, modal,
+    sound: Sound, vib,
+    fx: { burst: (x, y, n, k) => FX.burst(x, y, n, k), rain: (k, n, r) => FX.rain(k, n, r), text: (x, y, t, size, crit) => FX.text(x, y, t, size, crit) },
+    icons: { gem: () => Art.gem(), coin: () => Art.coin(), ticket: () => Art.ticket(), line: (k, c) => Art.icon(k, c) },
+    cast: () => CAST_DEF.map(castOf),
+    player: () => castOf(CAST_DEF[0]),
+    store(id) { S.mini = S.mini || {}; return (S.mini[id] = S.mini[id] || {}); },
+    stat(k, n = 1) { S.st.mini = S.st.mini || {}; S.st.mini[k] = (S.st.mini[k] || 0) + n; },
+    save: () => save(),
+    overlay,
+    go: p => go(p),
+    on(ev, fn) { (BUS[ev] = BUS[ev] || []).push(fn); },
+    get page() { return page; },
+  });
+  function openGame(g) {
+    try { Sound.click(); g.open(API); }
+    catch (e) { console.error(e); toast('這個遊戲暫時打不開，請稍後再試'); }
+  }
+  function buildPlay() {
+    const list = [...GAMES].sort((a, b) => (a.order || 99) - (b.order || 99));
+    $('#pg-play .pane').innerHTML = `<div class="sec-h"><div><div class="eyebrow">Salon de Jeux</div><h2>名媛娛樂城</h2></div><div class="sub">全部用遊戲金幣，不會花到真錢</div></div>
+      <div class="play-grid">${list.map(g => `<button class="play-card" data-g="${esc(g.id)}" style="--c1:${g.color || '#e0628a'};--c2:${g.color2 || '#7d4bc4'}">
+        <span class="pc-art">${typeof g.art === 'function' ? g.art(API) : ''}</span>
+        <span class="pc-txt"><b>${esc(g.name)}</b><small>${esc(g.tagline || '')}</small></span>${g.badge ? `<i class="pc-badge">${esc(g.badge)}</i>` : ''}</button>`).join('')}</div>`;
+  }
+
+  // ================= 連動系統：共用英雄、統一發獎、戰績、每日任務、貴婦通行證 =================
+  const RES = { silk: { name: '絲綢', color: '#f2a3bd' }, spice: { name: '香料', color: '#e38a60' }, ore: { name: '寶石原石', color: '#7aa6d6' }, leaf: { name: '金箔', color: '#d9b062' } };
+  const HERO_MAX = 60, STAR_NEED = [0, 10, 20, 40, 80, 150]; // 升到下一星需要的碎片
+  const castById = id => CAST_DEF.find(c => c.id === id);
+  function heroState(id) { S.heroes = S.heroes || {}; return (S.heroes[id] = S.heroes[id] || { lv: 1, star: id === 'erika' ? 2 : 1, shards: 0 }); }
+  const heroLvCost = lv => Math.round(300 * Math.pow(1.42, lv - 1));
+  const heroPower = h => Math.round((20 + h.lv * 6) * (1 + 0.3 * (h.star - 1)));
+  function heroesList() {
+    return CAST_DEF.map(d => { const h = heroState(d.id); return { ...castOf(d), lv: h.lv, star: h.star, shards: h.shards, power: heroPower(h), lvCost: h.lv >= HERO_MAX ? null : heroLvCost(h.lv), starNeed: h.star >= 6 ? null : STAR_NEED[h.star] }; });
+  }
+  function heroLevelUp(id, el) {
+    const h = heroState(id);
+    if (h.lv >= HERO_MAX) { toast('已經是最高等級了'); return false; }
+    if (!API.spendCoins(heroLvCost(h.lv), el)) return false;
+    h.lv++; Sound.buy(); event('hero_up', { id }); save(); emit('heroes'); return true;
+  }
+  function heroStarUp(id, el) {
+    const h = heroState(id), need = STAR_NEED[h.star];
+    if (!need) { toast('已經是滿星了'); return false; }
+    if (h.shards < need) { if (el) shake(el); Sound.err(); toast(`還差 ${need - h.shards} 個碎片`); return false; }
+    h.shards -= need; h.star++; Sound.level(); event('hero_star', { id }); save(); emit('heroes'); return true;
+  }
+  const kdCall = (fn, ...a) => { try { return K()?.[fn]?.(...a); } catch (e) { console.error(e); return undefined; } };
+
+  // 統一發獎：{ coins, gems, tickets, res:{silk,spice,ore,leaf}, shards:{vivi:2}, speedup: 分鐘, passXp }
+  function grant(r = {}, x, y, quiet) {
+    const parts = [];
+    if (r.coins > 0) { API.addCoins(r.coins, x, y); parts.push(`${COIN()}${fmt(r.coins)}`); }
+    if (r.gems > 0) { API.addGems(r.gems, x, y); parts.push(`${GEM()}${Math.floor(r.gems)}`); }
+    if (r.tickets > 0) { API.addTickets(r.tickets); parts.push(`${Art.ticket()}×${Math.floor(r.tickets)}`); }
+    if (r.shards) for (const [id, n] of Object.entries(r.shards)) if (n > 0 && castById(id)) { heroState(id).shards += Math.floor(n); parts.push(`${id === 'erika' ? S.name : castById(id).name}碎片×${Math.floor(n)}`); }
+    const res = {};
+    if (r.res) for (const [k, v] of Object.entries(r.res)) if (RES[k] && v > 0) { res[k] = Math.floor(v); parts.push(`${RES[k].name}+${fmt(v)}`); }
+    if (Object.keys(res).length || r.speedup > 0) kdCall('grant', { res, speedup: r.speedup || 0 });
+    if (r.speedup > 0) parts.push(`加速 ${r.speedup} 分鐘`);
+    if (r.passXp > 0) { addPassXp(r.passXp); parts.push(`通行證 +${r.passXp}`); }
+    save(); updateOverlayChips(); emit('heroes');
+    const html = parts.join('　');
+    if (!quiet && html) toast(html, 'gold');
+    return html;
+  }
+
+  // ---- 戰績事件 → 每日任務、通行證、成就 ----
+  const EV_XP = { m3_clear: 30, arena_play: 25, royale_match: 30, card_round: 10, mahjong_hand: 20, kd_build: 15, kd_march: 15, kd_research: 15, gacha: 10, item_buy: 10, friend: 10 };
+  function event(name, data = {}) {
+    const n = Math.max(1, Math.floor(data.n || 1));
+    S.ev = S.ev || {};
+    S.ev[name] = (S.ev[name] || 0) + n;
+    if (EV_XP[name]) addPassXp(EV_XP[name] * (name === 'card_round' ? 1 : 1));
+    const ms = dailyMissions();
+    for (const m of ms) if (m.ev === name && !S.daily2.done[m.id]) { S.daily2.prog[m.id] = Math.min(m.n, (S.daily2.prog[m.id] || 0) + n); }
+    emit('event', name, data);
+  }
+  const MISSION_POOL = [
+    { id: 'tap', ev: 'tap', n: 300, name: '在百貨點擊 300 次', go: 'home' },
+    { id: 'floor', ev: 'floor_up', n: 10, name: '升級樓層 10 次', go: 'floors' },
+    { id: 'friend', ev: 'friend', n: 2, name: '接待 2 位貴婦閨蜜', go: 'home' },
+    { id: 'item', ev: 'item_buy', n: 1, name: '買一件時尚單品', go: 'wardrobe' },
+    { id: 'gacha', ev: 'gacha', n: 1, name: '開 1 次精品福袋', go: 'gacha' },
+    { id: 'kdc', ev: 'kd_collect', n: 3, name: '在王國收成 3 次', go: 'kingdom' },
+    { id: 'kdb', ev: 'kd_build', n: 1, name: '王國建造或升級 1 次', go: 'kingdom' },
+    { id: 'kdm', ev: 'kd_march', n: 2, name: '派隊伍出征 2 次', go: 'kingdom' },
+    { id: 'm3', ev: 'm3_clear', n: 2, name: '時尚消消樂過 2 關', game: 'match3' },
+    { id: 'arena', ev: 'arena_play', n: 2, name: '名媛對決打 2 場', game: 'arena' },
+    { id: 'royale', ev: 'royale_match', n: 1, name: '參加 1 場名媛吃雞', game: 'royale' },
+    { id: 'kill', ev: 'royale_kill', n: 5, name: '吃雞淘汰 5 名對手', game: 'royale' },
+    { id: 'card', ev: 'card_round', n: 5, name: '牌桌玩 5 局（妞妞或十三支）', game: 'niuniu' },
+    { id: 'mj', ev: 'mahjong_hand', n: 2, name: '貴婦麻將打 2 局', game: 'mahjong' },
+    { id: 'hero', ev: 'hero_up', n: 2, name: '英雄升級 2 次', go: 'kingdom' },
+  ];
+  function seeded(seed) { let x = 0; for (const ch of seed) x = (x * 31 + ch.charCodeAt(0)) >>> 0; return () => ((x = (x * 1664525 + 1013904223) >>> 0) / 4294967296); }
+  function dailyMissions() {
+    const today = dayKey();
+    if (!S.daily2 || S.daily2.day !== today) {
+      const r = seeded(today + S.name);
+      const pool = [...MISSION_POOL].sort(() => r() - 0.5);
+      const pick = ['tap'].concat(pool.filter(m => m.id !== 'tap').slice(0, 5).map(m => m.id));
+      S.daily2 = { day: today, ids: pick, prog: {}, done: {}, chest: false };
+    }
+    return S.daily2.ids.map(id => MISSION_POOL.find(m => m.id === id)).filter(Boolean);
+  }
+  const missionReward = () => ({ coins: Math.max(500, rawIps() * baseMult() * 300), passXp: 100 });
+  const missionsClaimable = () => dailyMissions().filter(m => !S.daily2.done[m.id] && (S.daily2.prog[m.id] || 0) >= m.n).length + (dailyMissions().every(m => S.daily2.done[m.id]) && !S.daily2.chest ? 1 : 0);
+
+  // ---- 貴婦通行證（30 天一季，40 階） ----
+  const PASS_TIERS = 40, PASS_XP = 500, PASS_DAYS = 30;
+  function pass() {
+    const t = now();
+    if (!S.pass || t > S.pass.start + PASS_DAYS * 86400e3) S.pass = { season: (S.pass?.season || 0) + 1, start: t, xp: 0, free: {}, prem: {}, premium: false };
+    return S.pass;
+  }
+  function addPassXp(n) { const p = pass(); p.xp = Math.min(PASS_TIERS * PASS_XP, p.xp + n); }
+  const passTier = () => Math.floor(pass().xp / PASS_XP);
+  const SSR_POOL = () => ITEMS.filter(i => i.gacha === 'SSR');
+  function passReward(tier, prem) {
+    const heroIds = CAST_DEF.map(c => c.id);
+    const hero = heroIds[tier % heroIds.length];
+    const ru = Math.max(100, kdCall('resUnit') || 100);
+    if (!prem) {
+      switch (tier % 5) {
+        case 0: return { tickets: 1, gems: 10 };
+        case 1: return { coins: 'mins:' + (10 + tier) };
+        case 2: return { res: { silk: ru * 2, spice: ru * 2 } };
+        case 3: return { shards: { [hero]: 2 } };
+        default: return { gems: 8, res: { ore: ru, leaf: ru } };
+      }
+    }
+    if (tier === 20 || tier === 40) return { ssr: true };
+    switch (tier % 4) {
+      case 0: return { gems: 60, tickets: 2 };
+      case 1: return { shards: { [hero]: 6 }, speedup: 60 };
+      case 2: return { coins: 'mins:' + (30 + tier * 2), res: { silk: ru * 5, spice: ru * 5, ore: ru * 3, leaf: ru * 3 } };
+      default: return { gems: 30, shards: { erika: 3 } };
+    }
+  }
+  function rewardText(r) {
+    if (r.ssr) return 'SSR 單品';
+    const p = [];
+    if (r.coins) p.push(`${COIN()}${r.coins.split(':')[1]}分`);
+    if (r.gems) p.push(`${GEM()}${r.gems}`);
+    if (r.tickets) p.push(`${Art.ticket()}×${r.tickets}`);
+    if (r.res) p.push(Object.keys(r.res).map(k => RES[k].name).join('、'));
+    if (r.shards) p.push(Object.entries(r.shards).map(([id, n]) => `${id === 'erika' ? 'Erika' : castById(id).name}碎片×${n}`).join(''));
+    if (r.speedup) p.push(`加速${r.speedup}分`);
+    return p.join(' ');
+  }
+  function claimPassReward(r, x, y) {
+    if (r.ssr) {
+      const left = SSR_POOL().filter(i => !S.items[i.id]);
+      if (left.length) { const it = pick(left); S.items[it.id] = 1; toast(`通行證大獎：SSR「${it.name}」！`, 'gold'); Sound.ssr(); FX.rain('confetti', 80); renderAvatar(); return; }
+      return grant({ gems: 300 }, x, y);
+    }
+    const g = { ...r };
+    if (typeof g.coins === 'string') g.coins = Math.max(1000, rawIps() * baseMult() * 60 * +g.coins.split(':')[1]);
+    return grant(g, x, y);
+  }
+  const passClaimable = () => { const p = pass(), t = passTier(); let c = 0; for (let i = 1; i <= t; i++) { if (!p.free[i]) c++; if (p.premium && !p.prem[i]) c++; } return c; };
+
+  // ---- 任務與通行證畫面 ----
+  const MODE_ICON = { home: 'home', floors: 'floors', wardrobe: 'wardrobe', gacha: 'gift', kingdom: 'castle', match3: 'play', arena: 'star', royale: 'star', niuniu: 'play', mahjong: 'play' };
+  function openMissions(tab = 'daily') {
+    const o = overlay({ id: 'missions', title: '任務與通行證' });
+    let cur = tab;
+    const render = () => {
+      const ms = dailyMissions(), d = S.daily2, p = pass(), tier = passTier();
+      const doneN = ms.filter(m => d.done[m.id]).length;
+      const daysLeft = Math.max(0, Math.ceil((p.start + PASS_DAYS * 86400e3 - now()) / 86400e3));
+      let h = `<div class="ms-tabs"><button class="${cur === 'daily' ? 'on' : ''}" data-tab="daily">每日任務${missionsClaimable() ? '<i class="dot"></i>' : ''}</button><button class="${cur === 'pass' ? 'on' : ''}" data-tab="pass">貴婦通行證${passClaimable() ? '<i class="dot"></i>' : ''}</button></div><div class="ms-scroll">`;
+      if (cur === 'daily') {
+        h += `<div class="ms-hero"><div><div class="eyebrow">Daily Missions</div><b>今日任務 ${doneN} / ${ms.length}</b><small>全部完成可開啟「貴婦寶箱」</small></div>
+          <button class="ms-chest ${doneN === ms.length && !d.chest ? 'ready' : ''} ${d.chest ? 'opened' : ''}" data-chest>${Art.giftBox()}</button></div>`;
+        h += ms.map(m => {
+          const v = d.prog[m.id] || 0, ok = v >= m.n, done = d.done[m.id];
+          return `<div class="ms-row ${done ? 'done' : ''}"><span class="ms-ic">${Art.icon(MODE_ICON[m.game || m.go] || 'star')}</span>
+            <div class="ms-main"><b>${m.name}</b><div class="ms-bar"><i style="width:${Math.min(100, v / m.n * 100)}%"></i></div><small>${Math.min(v, m.n).toLocaleString()} / ${m.n.toLocaleString()}・通行證 +100・${COIN()}5分鐘收益</small></div>
+            ${done ? '<span class="sub">已領取</span>' : ok ? `<button class="btn goldb" data-claim="${m.id}">領取</button>` : `<button class="btn ghost" data-go="${m.id}">前往</button>`}</div>`;
+        }).join('');
+      } else {
+        h += `<div class="ps-hero"><div class="eyebrow" style="color:#ecd08a">Season ${p.season}</div><b>第 ${p.season} 季・名媛之夜</b><small>剩 ${daysLeft} 天・目前第 ${tier} 階</small>
+          <div class="ps-bar"><i style="width:${tier >= PASS_TIERS ? 100 : (p.xp % PASS_XP) / PASS_XP * 100}%"></i></div><small>${tier >= PASS_TIERS ? '已滿階！' : `下一階還要 ${PASS_XP - p.xp % PASS_XP} 點`}</small>
+          ${p.premium ? '<span class="ps-badge">尊榮通行證已啟用</span>' : `<button class="btn goldb" data-buypass>解鎖尊榮通行證</button>`}
+          ${passClaimable() > 1 ? '<button class="btn" data-claimall>一鍵領取</button>' : ''}</div>
+          <div class="ps-head"><span>階</span><span>免費獎勵</span><span>尊榮獎勵</span></div>`;
+        for (let i = 1; i <= PASS_TIERS; i++) {
+          const fr = passReward(i, false), pr = passReward(i, true), reached = i <= tier;
+          const cell = (r, kind, claimed, locked) => `<div class="ps-cell ${kind} ${claimed ? 'claimed' : ''} ${locked ? 'locked' : ''} ${r.ssr ? 'ssr' : ''}"><span class="ps-rw">${rewardText(r)}</span>${claimed ? `<em>${Art.icon('check')}</em>` : reached && !locked ? `<button class="btn ${kind === 'prem' ? 'goldb' : ''}" data-ps="${kind}:${i}">領</button>` : ''}${locked ? `<em class="lk">${Art.icon('lock')}</em>` : ''}</div>`;
+          h += `<div class="ps-row ${reached ? 'reached' : ''}"><span class="ps-n">${i}</span>${cell(fr, 'free', p.free[i])}${cell(pr, 'prem', p.prem[i], !p.premium)}</div>`;
+        }
+      }
+      o.body.innerHTML = h + '</div>';
+    };
+    o.body.addEventListener('click', e => {
+      const b = e.target.closest('button'); if (!b) return;
+      const [x, y] = centerOf(b);
+      if (b.dataset.tab) { cur = b.dataset.tab; Sound.click(); render(); return; }
+      if (b.dataset.claim) { const d = S.daily2; d.done[b.dataset.claim] = 1; event('mission'); grant(missionReward(), x, y); Sound.cash(); render(); updateHudSlow(); return; }
+      if (b.dataset.go) { const m = MISSION_POOL.find(q => q.id === b.dataset.go); o.close(); if (m.game) { const g = GAMES.find(q => q.id === m.game); if (g) setTimeout(() => openGame(g), 250); } else go(m.go); return; }
+      if (b.dataset.chest !== undefined) {
+        const ms = dailyMissions();
+        if (S.daily2.chest || !ms.every(m => S.daily2.done[m.id])) { Sound.err(); toast('完成今天全部任務就能打開'); return; }
+        S.daily2.chest = true; grant({ gems: 20, tickets: 1, passXp: 200, shards: { [pick(CAST_DEF).id]: 3 } }, x, y); Sound.ssr(); FX.burst(x, y, 40); render(); updateHudSlow(); return;
+      }
+      if (b.dataset.ps) { const [kind, i] = b.dataset.ps.split(':'); const p = pass(); (kind === 'free' ? p.free : p.prem)[i] = 1; claimPassReward(passReward(+i, kind === 'prem'), x, y); Sound.cash(); render(); updateHudSlow(); return; }
+      if (b.dataset.claimall !== undefined) { const p = pass(), t = passTier(); for (let i = 1; i <= t; i++) { if (!p.free[i]) { p.free[i] = 1; claimPassReward(passReward(i, false)); } if (p.premium && !p.prem[i]) { p.prem[i] = 1; claimPassReward(passReward(i, true)); } } Sound.cash(); FX.burst(x, y, 40); render(); updateHudSlow(); return; }
+      if (b.dataset.buypass !== undefined) { o.close(); go('shop'); setTimeout(() => startRecharge('pass'), 300); }
+    });
+    render();
+    return o;
+  }
+
+  Object.assign(API, {
+    grant: (r, x, y, quiet) => grant(r, x, y, quiet),
+    event: (name, data) => event(name, data),
+    heroes: () => heroesList(),
+    heroLevelUp: (id, el) => heroLevelUp(id, el),
+    heroStarUp: (id, el) => heroStarUp(id, el),
+    fashion: () => ({ power: fashionBonus(), owned: ownedCount(), eq: { ...S.eq } }),
+    perk: name => { const v = kdCall('perk', name); return typeof v === 'number' && isFinite(v) ? v : 0; },
+    resUnit: () => { const v = kdCall('resUnit'); return v > 0 ? v : 100; },
+    RES,
+    openMissions: tab => openMissions(tab),
+    openGame: id => { const g = GAMES.find(x => x.id === id); if (!g) return false; go('play'); setTimeout(() => openGame(g), 120); return true; },
+  });
+
   // ================= 啟動 =================
+  // 開場載入畫面：等 3D 人物載好（或最多 9 秒）再淡出
+  const Splash = (() => {
+    const el = $('#splash');
+    if (!el) return { done() {} };
+    const tips = ['正在為 Erika 化妝…', '香檳冰鎮中…', '紅毯鋪好了…', '櫥窗燈光調整中…', '把粉鑽擦亮一點…'];
+    let i = 0, prog = 0.05, closed = false;
+    const bar = $('#spBar'), tip = $('#spTip');
+    const tt = setInterval(() => { i = (i + 1) % tips.length; tip.textContent = tips[i]; }, 1400);
+    const set = v => { prog = Math.max(prog, v); bar.style.width = Math.round(prog * 100) + '%'; };
+    set(0.08);
+    const fake = setInterval(() => set(Math.min(0.9, prog + 0.015)), 120);
+    addEventListener('erika3d-progress', e => set(0.1 + e.detail * 0.85));
+    const done = () => {
+      if (closed) return;
+      closed = true; set(1); clearInterval(tt); clearInterval(fake);
+      setTimeout(() => { el.classList.add('out'); setTimeout(() => el.remove(), 700); }, 250);
+    };
+    addEventListener('erika3d-ready', done);
+    addEventListener('erika3d-failed', done);
+    setTimeout(done, 9000);
+    return { done };
+  })();
+  if (SANDBOX) Splash.done();
+
   let started = false;
   function start(hot) {
     if (started) return;
     started = true;
     Art.inject();
-    const local = loadLocal();
-    const src = hot && hot.v === 1 && (!local || (hot.lastSeen || 0) >= (local.lastSeen || 0)) ? hot : local;
-    S = hydrate(src);
+    const local = SANDBOX ? null : loadLocal();
+    const src = SANDBOX ? null : hot && hot.v === 1 && (!local || (hot.lastSeen || 0) >= (local.lastSeen || 0)) ? hot : local;
+    S = hydrate(SANDBOX ? { coins: 5e9, gems: 99999, tickets: 30, hint: false, daily: { last: dayKey(), streak: 1 }, floors: [60, 50, 40, 30, 20, 10, 5, 0, 0, 0, 0, 0], st: { life: 1e10 }, rech: { total: 3000, count: 5, log: [] } } : src);
+    if (SANDBOX) { S.st.lvl = level(); S.st.title = titleIdx(); }
     bind();
     buildHome(); buildBoosts(); go('home');
     updateHudFast(); updateHudSlow();
-    if (!src) {
+    if (SANDBOX) {
+      const g = (location.search.match(/[?&]game=([\w-]+)/) || [])[1];
+      if (g) setTimeout(() => { go('play'); const gm = GAMES.find(x => x.id === g); if (gm) openGame(gm); }, 300);
+    } else if (!src) {
       modal({
         queue: true, x: false, title: '歡迎光臨 ERIKA 百貨',
-        body: `<div class="profile-ava">${Art.avatar(eqItems())}</div><p class="mb">妳是 ERIKA 百貨的新任老闆娘。<br>只要<b>一直點畫面</b>就會有客人上門消費，<br>賺到的錢拿去開新樓層、買美美的衣服！</p>
+        body: `<div class="profile-ava">${portraitHTML('full')}</div><p class="mb">妳是 ERIKA 百貨的新任老闆娘。<br>只要<b>一直點畫面</b>就會有客人上門消費，<br>賺到的錢拿去開新樓層、買美美的衣服！</p>
           <div class="set-row" style="border:0;padding-bottom:0"><input class="name-in" id="firstName" maxlength="10" value="Erika" aria-label="妳的名字"></div>`,
         actions: [{ label: '開始營業', cls: 'goldb', fn: (close, m) => { const v = m.querySelector('#firstName').value.trim().slice(0, 10); S.name = v || 'Erika'; save(); updateHudSlow(); close(); } }],
       });
@@ -1103,11 +1517,11 @@
       const gap = now() - (S.lastSeen || now());
       if (gap > 60e3) offlineReward(gap);
     }
-    checkDaily();
+    if (!SANDBOX) checkDaily();
     S.lastSeen = now();
     lastFrame = performance.now();
     requestAnimationFrame(frame);
-    Cloud.init();
+    if (!SANDBOX) Cloud.init();
     if (/[?&]debug/.test(location.search)) window.ERIKA_DEBUG = { get S() { return S; }, rebuild: rebuildAll, fmt, advance(sec) { for (let i = 0; i < sec * 10; i++) { tick(0.1); FX.step(0.1); } updateHudFast(); updateHudSlow(); updateBoosts(); checkLevel(); } };
     if ('serviceWorker' in navigator && !window.claude && /^https?:$/.test(location.protocol)) navigator.serviceWorker.register('sw.js').catch(() => {});
   }

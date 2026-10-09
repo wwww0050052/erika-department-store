@@ -13,6 +13,20 @@ const types = {
 };
 
 http.createServer((req, res) => {
+  // 開發用：渲染工具把圖片 PUT 到 /__save/assets/cast/xxx.webp（只允許寫進 assets/）
+  if (req.method === 'PUT' && req.url.startsWith('/__save/')) {
+    const rel = decodeURIComponent(req.url.slice('/__save/'.length).split('?')[0]);
+    const dest = path.join(root, rel);
+    if (!/^assets[\\/][\w\-\\/]+\.(webp|png|json|vrm)$/.test(rel) || !dest.startsWith(path.join(root, 'assets') + path.sep)) { res.writeHead(403); return res.end(); }
+    const chunks = [];
+    req.on('data', c => chunks.push(c));
+    req.on('end', () => {
+      fs.mkdirSync(path.dirname(dest), { recursive: true });
+      fs.writeFileSync(dest, Buffer.concat(chunks));
+      res.writeHead(200); res.end('ok');
+    });
+    return;
+  }
   let p;
   try { p = decodeURIComponent(new URL(req.url, 'http://x').pathname); } catch { res.writeHead(400); return res.end(); }
   if (p.endsWith('/')) p += 'index.html';

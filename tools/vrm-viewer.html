@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="zh-Hant"><head><meta charset="utf-8"><title>VRM 角色檢視（測試用）</title>
+<style>
+  body{margin:0;padding:12px;background:#fbeef2;font:13px sans-serif}
+  .grid{display:flex;flex-wrap:wrap;gap:10px}
+  figure{margin:0;background:linear-gradient(#fff,#fde7ee);border-radius:12px;padding:6px;text-align:center}
+  figure img{display:block;width:260px;height:390px;object-fit:contain}
+  #log{white-space:pre-wrap;font:11px monospace;color:#844}
+</style>
+<script type="importmap">{"imports":{"three":"../vendor/three/three.module.min.js","three/addons/":"../vendor/three/addons/","@pixiv/three-vrm":"../vendor/three-vrm/three-vrm.module.min.js"}}</script>
+</head><body>
+<div class="grid" id="grid"></div><div id="log"></div>
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { VRMLoaderPlugin, VRMUtils } from '@pixiv/three-vrm';
+
+const params = new URLSearchParams(location.search);
+const names = (params.get('m') || 'victoria,vivi,vita,shibu,shino,fumiriya').split(',');
+const view = params.get('view') || 'full';        // full | face
+const log = s => { document.getElementById('log').textContent += s + '\n'; };
+
+const W = 520, H = 780;
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
+renderer.setSize(W, H); renderer.setPixelRatio(1);
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+const loader = new GLTFLoader();
+loader.register(p => new VRMLoaderPlugin(p));
+
+for (const n of names) {
+  const scene = new THREE.Scene();
+  const key = new THREE.DirectionalLight(0xffffff, 2.2); key.position.set(0.6, 1.6, 2); scene.add(key);
+  scene.add(new THREE.AmbientLight(0xffffff, 0.9));
+  const t0 = performance.now();
+  const gltf = await loader.loadAsync(`../_raw/${n}.vrm`);
+  const vrm = gltf.userData.vrm;
+  VRMUtils.rotateVRM0(vrm);
+  scene.add(vrm.scene);
+  const hb = n => vrm.humanoid.getNormalizedBoneNode(n);
+  hb('leftUpperArm').rotation.z = 1.2; hb('rightUpperArm').rotation.z = -1.2;
+  hb('leftLowerArm').rotation.z = 0.12; hb('rightLowerArm').rotation.z = -0.12;
+  vrm.update(1 / 60);
+  const box = new THREE.Box3().setFromObject(vrm.scene);
+  const h = box.max.y - box.min.y;
+  const cam = new THREE.PerspectiveCamera(view === 'face' ? 18 : 24, W / H, 0.1, 20);
+  if (view === 'face') { const head = hb('head').getWorldPosition(new THREE.Vector3()); cam.position.set(0, head.y + 0.03, 1.1); cam.lookAt(0, head.y + 0.03, 0); }
+  else { cam.position.set(0, box.min.y + h * 0.52, h * 2.35); cam.lookAt(0, box.min.y + h * 0.5, 0); }
+  renderer.render(scene, cam);
+  const fig = document.createElement('figure');
+  fig.innerHTML = `<img src="${renderer.domElement.toDataURL()}"><figcaption>${n}・${vrm.meta?.name || vrm.meta?.title || ''}・高 ${h.toFixed(2)}m・${Math.round(performance.now() - t0)}ms</figcaption>`;
+  document.getElementById('grid').appendChild(fig);
+  log(`${n}: mats=${[...new Set([])].length}`);
+}
+document.body.dataset.done = '1';
+</script></body></html>

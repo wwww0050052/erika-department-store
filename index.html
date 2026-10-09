@@ -16,12 +16,27 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <!--HEAD-->
+<script type="importmap">{"imports":{"three":"./vendor/three/three.module.min.js","three/addons/":"./vendor/three/addons/","@pixiv/three-vrm":"./vendor/three-vrm/three-vrm.module.min.js"}}</script>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400..900;1,6..96,400..900&family=Noto+Serif+TC:wght@600;700&display=swap">
 <link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/kingdom.css">
+<link rel="stylesheet" href="css/games/match3.css">
+<link rel="stylesheet" href="css/games/arena.css">
+<link rel="stylesheet" href="css/games/cards.css">
+<link rel="stylesheet" href="css/games/royale.css">
+<link rel="stylesheet" href="css/games/mahjong.css">
 <!--/HEAD-->
 </head>
 <body>
 <!--BODY-->
+<div id="splash" role="status" aria-label="載入中">
+  <div class="sp-glow"></div>
+  <div class="sp-crown">♛</div>
+  <div class="sp-logo">ERIKA</div>
+  <div class="sp-sub">GRANDS MAGASINS ・ 百貨貴婦</div>
+  <div class="sp-bar"><i id="spBar"></i></div>
+  <div class="sp-tip" id="spTip">正在為 Erika 化妝…</div>
+</div>
 <div id="app">
   <header class="hud">
     <button class="me" id="btnProfile" aria-label="貴婦檔案">
@@ -31,6 +46,7 @@
     </button>
     <div class="hud-r">
       <button class="chip-btn" id="btnGems" aria-label="粉鑽，前往儲值"><span id="gemIc"></span><span id="gemTxt" class="num">0</span><i>+</i></button>
+      <button class="icon-btn" id="btnMis" aria-label="任務與通行證"><span id="misIc"></span><span class="dot" id="misDot" hidden></span></button>
       <button class="icon-btn" id="btnAch" aria-label="成就"><span id="achIc"></span><span class="dot" id="achDot" hidden></span></button>
       <button class="icon-btn" id="btnSet" aria-label="設定"><span id="setIc"></span></button>
     </div>
@@ -41,6 +57,7 @@
       <div class="stage" id="stage">
         <div class="facade" id="facade"></div>
         <div class="avatar-wrap"><div id="avatar"></div></div>
+        <div id="stage3d" data-frame="stage"></div>
         <div class="city-tag" id="cityTag"></div>
         <div class="tap-hint" id="tapHint" hidden>輕點畫面開始血拼 ♥</div>
         <button class="btn goldb branch-cta" id="branchCta" hidden>開分店<small id="branchStars"></small></button>
@@ -48,8 +65,10 @@
       </div>
       <div class="boosts" id="boosts"></div>
     </section>
+    <section class="page" id="pg-kingdom" aria-label="王國"></section>
     <section class="page" id="pg-floors" aria-label="樓層"><div class="pane"></div></section>
     <section class="page" id="pg-wardrobe" aria-label="衣櫥"><div class="pane"></div></section>
+    <section class="page" id="pg-play" aria-label="娛樂城"><div class="pane"></div></section>
     <section class="page" id="pg-gacha" aria-label="福袋"><div class="pane"></div></section>
     <section class="page" id="pg-shop" aria-label="儲值"><div class="pane"></div></section>
   </main>
@@ -60,7 +79,16 @@
 <div id="toasts" aria-live="polite"></div>
 <script src="js/data.js"></script>
 <script src="js/art.js"></script>
+<script src="js/kingdom.js"></script>
 <script src="js/game.js"></script>
+<script src="js/games/match3.js"></script>
+<script src="js/games/arena.js"></script>
+<script src="js/games/cards.js"></script>
+<script src="js/games/niuniu.js"></script>
+<script src="js/games/poker13.js"></script>
+<script src="js/games/royale.js"></script>
+<script src="js/games/mahjong.js"></script>
+<script type="module" src="js/avatar3d.js"></script>
 <!--/BODY-->
 </body>
 </html>
