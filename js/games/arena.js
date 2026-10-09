@@ -46,7 +46,7 @@
           { name: '糖霜護盾', en: 'Sugar Shield', cd: 10, range: 240, icon: 'shield', desc: '替周圍隊友套上可吸收傷害的糖霜護盾。' },
           { name: '下午茶盛宴', en: 'Grand Tea Party', ult: true, range: 440, icon: 'tea', desc: '大範圍治療全隊、解除控制，並提升攻速與移速。' },
         ] },
-      vita: { ci: 2, role: 'marksman', hp: 760, atk: 49, def: 11, range: 190, cd: 0.74, spd: 118, crit: 0.18, proj: 'bolt', back: 86, h: 78,
+      vita: { ci: 2, role: 'marksman', hp: 800, atk: 53, def: 12, range: 190, cd: 0.72, spd: 118, crit: 0.18, proj: 'bolt', back: 86, h: 78,
         rate: [2, 5, 1, 3], tag: '遠程輸出',
         skills: [
           { name: '霓虹連射', en: 'Neon Barrage', cd: 7, range: 220, icon: 'barrage', desc: '瞬間連射四發電光彈，每一發都可能爆擊。' },
@@ -67,7 +67,7 @@
           { name: '書頁風暴', en: 'Page Storm', cd: 9, range: 210, icon: 'pages', desc: '書頁旋風造成範圍傷害，並大幅緩速敵人。' },
           { name: '千卷封印', en: 'Thousand Scrolls', ult: true, range: 240, icon: 'seal', desc: '展開封印法陣，大範圍暈眩並重創敵人。' },
         ] },
-      fumi: { ci: 5, role: 'tank', hp: 1650, atk: 52, def: 36, range: 46, cd: 1.1, spd: 114, crit: 0, proj: null, back: 8, h: 84,
+      fumi: { ci: 5, role: 'tank', hp: 1580, atk: 48, def: 34, range: 46, cd: 1.1, spd: 114, crit: 0, proj: null, back: 8, h: 84,
         rate: [5, 2, 4, 2], tag: '嘲諷吸收',
         skills: [
           { name: '管家禮儀', en: 'Butler Etiquette', cd: 9, range: 128, icon: 'bow', desc: '優雅一鞠躬，嘲諷周圍敵人，強迫他們攻擊自己。' },
@@ -111,7 +111,7 @@
     const LV_MAX = 60, STAR_MAX = 6;
     const growthMult = (lv, star) => (1 + 0.025 * (clamp(lv, 1, LV_MAX) - 1)) * (1 + 0.08 * (clamp(star, 1, STAR_MAX) - 1));
     const enemyMult = r => 1 + r.tier * 0.12 + Math.min(r.stars, 10) * 0.02;
-    const enemySkill = r => clamp(0.35 + r.tier * 0.09 + r.stars * 0.01, 0.35, 0.95);
+    const enemySkill = r => clamp(0.35 + r.tier * 0.07 + Math.min(r.stars, 10) * 0.008, 0.35, 0.85);
     function rewards(o) {
       const coef = TIERS[clamp(o.tier | 0, 0, LEGEND)].coef;
       const r = o.rnd || Math.random;
@@ -158,7 +158,7 @@
         return u;
       };
       o.ally.forEach((h, i) => {
-        const u = mk(h, 0, i, (o.allyMult ? o.allyMult[i] : 1) * (S.superMode ? 1.3 : 1), i === 0 ? (S.coach ? 1 : 0.6) : (o.allyAI ?? 0.55), i === 0);
+        const u = mk(h, 0, i, (o.allyMult ? o.allyMult[i] : 1) * (S.superMode ? 1.3 : 1) * (i === 0 && S.coach ? 1.12 : 1), i === 0 ? (S.coach ? 1 : 0.6) : (o.allyAI ?? 0.55), i === 0);
         if (i === 0) { S.playerId = u.id; if (S.superMode) u.revives = 1; }
       });
       o.enemy.forEach((h, i) => mk(h, 1, i, o.enemyMult ? o.enemyMult[i] : 1, o.enemyAI ?? 0.55, false));
@@ -531,8 +531,8 @@
           if (!c) return null;
           if (strict) {
             if (c.heroes === 0) return null;
-            const allies = alliesIn(S, u, c.x, c.y, 260).length;
-            if (!(c.heroes >= 2 || (c.heroes >= 1 && (allies >= 2 || c.unit.hp < c.unit.maxHp * 0.5 || u.ai.skill < 0.5)))) return null;
+            // 技巧低的 AI 偶爾會錯過時機；技巧高的會等敵人進到範圍中心
+            if (u.ai.skill < 0.5 && c.heroes < 2 && S.rnd() < 0.5) return null;
             if (u.hid === 'fumi' && !safe(c.x, c.y) && c.heroes < 2) return null;
           }
           return c;
@@ -550,7 +550,7 @@
         case 'vita2': {
           const t = lowestHero(S, u, R) || (strict ? null : nearest(S, u, R, 'any'));
           if (!t) return null;
-          if (strict && !(t.hp < t.maxHp * 0.6 || u.ai.skill < 0.5)) {
+          if (strict && !(t.hp < t.maxHp * 0.8)) {
             const ang = Math.atan2(t.y - u.y, t.x - u.x), x2 = u.x + Math.cos(ang) * 600, y2 = u.y + Math.sin(ang) * 600;
             if (S.heroes[1 - u.team].filter(e => hittable(u, e) && segDist(e.x, e.y, u.x, u.y, x2, y2) < 40).length < 2) return null;
           }
@@ -749,15 +749,17 @@
         if (hpF >= 0.92) ai.mode = 'push';
         else { if (!nearE.length && farHome && sk > 0.3) startRecall(S, u); return; }
       }
-      if (hpF < lerp(0.18, 0.3, sk)) {
+      const nearA = S.heroes[u.team].filter(a => a.alive && d2(a, u) < 330 * 330).length;
+      if (hpF < 0.2 || (sk > 0.7 && hpF < 0.33 && nearE.length > nearA)) {
         if (nearE.length && tryAiSkills(S, u)) return;
         ai.mode = 'home';
         if (!nearE.length && farHome) startRecall(S, u);
         return;
       }
-      if (hpF < 0.4 && !nearE.length && d2(u, f) > 650 * 650 && sk > 0.45) { ai.mode = 'home'; startRecall(S, u); return; }
+      if (hpF < 0.35 && !nearE.length && d2(u, f) > 650 * 650) { ai.mode = 'home'; startRecall(S, u); return; }
       if (tryAiSkills(S, u)) return;
-      const t = aiTarget(S, u);
+      let t = aiTarget(S, u);
+      if (t && t.kind === 'hero' && S.rnd() < (1 - sk) * 0.35) { const m = nearest(S, u, u.range + 60, 'unit'); if (m && m.kind === 'minion') t = m; }
       if (t) { ai.mode = 'fight'; ai.tgt = t.id; }
       else { ai.mode = 'push'; ai.pos = formation(S, u); }
     }
@@ -773,7 +775,7 @@
       if (ai.mode === 'fight') {
         const t = S.byId.get(ai.tgt);
         if (!t || !hittable(u, t)) { ai.th = 0; u.moving = false; return; }
-        if (u.range > 100 && ai.skill > 0.6 && u.atkT > 0.18) {
+        if (u.range > 100 && ai.skill > 0.6 && u.atkT > 0.18 && u.hp < u.maxHp * 0.6) {
           for (const e of S.heroes[1 - u.team]) if (e.alive && e.range < 80 && d2(e, u) < 75 * 75) { moveToward(S, u, u.x + (u.x - e.x), u.y + (u.y - e.y), dt); return; }
         }
         engage(S, u, t, dt);
@@ -1126,8 +1128,11 @@
   function whiteOf(c) { const w = mkCv(c.width, c.height), x = w.getContext('2d'); x.drawImage(c, 0, 0); x.globalCompositeOperation = 'source-in'; x.fillStyle = '#fff'; x.fillRect(0, 0, w.width, w.height); return w; }
 
   // 小型光點精靈（快取）
+  // #rgb → #rrggbb（之後要接透明度字尾）
+  const hex6 = c => (/^#[0-9a-f]{3}$/i.test(c) ? '#' + c[1] + c[1] + c[2] + c[2] + c[3] + c[3] : c);
   const GLOW = new Map();
   function glowSp(color, hard = 0.35) {
+    color = hex6(color);
     const k = color + hard;
     if (!GLOW.has(k)) {
       const c = mkCv(64, 64), x = c.getContext('2d'), g = x.createRadialGradient(32, 32, 0, 32, 32, 32);
@@ -1138,6 +1143,7 @@
   }
   const SHAPE = new Map();
   function shapeSp(kind, color) {
+    color = hex6(color);
     const k = kind + color;
     if (SHAPE.has(k)) return SHAPE.get(k);
     const c = mkCv(48, 48), x = c.getContext('2d');
@@ -1563,13 +1569,13 @@
   // ---------- 選角＋英雄養成 ----------
   function showSelect(A) {
     const { api } = A;
-    if (A.ov) A.ov.setTitle('選擇出戰名媛');
+    if (A.ov) A.ov.setTitle('名媛對決・選角');
     const node = elx(`<section class="ar-select">
       <div class="sl-head"><button class="sl-back" aria-label="返回大廳">${ICON_BACK}</button><div class="sl-ht"><div class="ar-eye">Choose Your Lady</div><h2>選擇出戰名媛</h2></div><div class="sl-rk"></div></div>
       <div class="sl-hero"></div>
+      <div class="sl-roster"></div>
       <div class="sl-skills"></div>
       <div class="sl-grow"></div>
-      <div class="sl-roster"></div>
       <div class="sl-opts"></div>
       <div class="sl-foot"><button class="btn goldb wide sl-go">確認出戰<small></small></button></div>
     </section>`);
@@ -1602,13 +1608,12 @@
       renderOpts();
       $('.sl-go small').textContent = `${Core.ROLE[H.role]}・${h.name}`;
     };
+    const OPTS = { super: ['超神模式', 30, '全隊屬性 +30%・復活加快・陣亡原地復活一次・獎勵 ×2', 'sup'], coach: ['教練代打', 15, '職業級 AI 操作整場・妳的名媛屬性 +12%', 'coach'] };
+    const optLabel = (k, btn) => { const on = !!store(api).pend[k], p = OPTS[k][1]; return on ? '本局已啟用' : btn && btn.dataset.confirm ? `再按一下確認 ${api.icons.gem()}${p}` : `${api.icons.gem()}${p}`; };
+    const updOpt = btn => { if (!btn || !btn.isConnected) return; const k = btn.dataset.o; btn.classList.toggle('on', !!store(api).pend[k]); btn.querySelector('.pr').innerHTML = optLabel(k, btn); };
     const renderOpts = () => {
       const s = store(api);
-      const opt = (k, name, price, desc, cls) => {
-        const on = !!s.pend[k], btn = node.querySelector(`[data-o="${k}"]`), conf = btn && btn.dataset.confirm;
-        return `<button class="opt ${cls} ${on ? 'on' : ''} ${conf ? 'confirm' : ''}" data-o="${k}" ${conf ? 'data-confirm="1"' : ''}><b>${name}</b><small>${desc}</small><span class="pr">${on ? '本局已啟用' : conf ? `再按一下確認 ${api.icons.gem()}${price}` : `${api.icons.gem()}${price}`}</span></button>`;
-      };
-      $('.sl-opts').innerHTML = opt('super', '超神模式', 30, '全隊屬性 +30%・復活加快・陣亡原地復活一次・獎勵 ×2', 'sup') + opt('coach', '教練代打', 15, '職業級 AI 幫妳操作整場', 'coach');
+      $('.sl-opts').innerHTML = Object.entries(OPTS).map(([k, [name, , desc, cls]]) => `<button class="opt ${cls} ${s.pend[k] ? 'on' : ''}" data-o="${k}"><b>${name}</b><small>${desc}</small><span class="pr">${optLabel(k)}</span></button>`).join('');
     };
     heroesHook = () => { if (A.screen === node) render(); };
     node.addEventListener('click', e => {
@@ -1628,7 +1633,7 @@
       if (o) {
         const k = o.dataset.o, s = store(api);
         if (s.pend[k]) { api.toast('這個加成本局已經啟用囉'); return; }
-        api.twoTap(o, () => { if (api.spendGems(k === 'super' ? 30 : 15)) { store(api).pend[k] = true; api.save(); safeSound(api, 'buy'); const r = o.getBoundingClientRect(); api.fx.burst(r.left + r.width / 2, r.top + r.height / 2, 24, ['spark', 'gem']); api.toast(k === 'super' ? '超神模式啟動！下一局全隊 +30%、獎勵雙倍' : '教練就位！下一局交給職業選手', 'gold'); } renderOpts(); }, renderOpts);
+        api.twoTap(o, () => { if (api.spendGems(OPTS[k][1])) { store(api).pend[k] = true; api.save(); safeSound(api, 'buy'); const r = o.getBoundingClientRect(); api.fx.burst(r.left + r.width / 2, r.top + r.height / 2, 24, ['spark', 'gem']); api.toast(k === 'super' ? '超神模式啟動！下一局全隊 +30%、獎勵雙倍' : '教練就位！下一局交給職業選手', 'gold'); } updOpt(o); }, () => updOpt(o));
         return;
       }
       if (t.closest('.sl-go')) { const s = store(api); s.last = A.sel; api.save(); safeSound(api, 'click'); showMatch(A); }
@@ -1707,7 +1712,7 @@
     if (A.ov) A.ov.setTitle(`ERIKA百貨 VS ${cfg.team.name}`);
     const card = (team, i) => {
       const id = (team ? cfg.enemy : cfg.ally)[i], H = HD[id], a = cfg.art[team][i];
-      return `<div class="vs-card ${team ? 'e' : 'a'} ${!team && !i ? 'me' : ''}" style="--i:${i}"><div class="vs-pic"><img src="${a.full}" alt=""></div><div class="vs-cap"><b>${api.esc(cfg.names[team][i])}</b><small>${Core.ROLE[H.role]}・Lv.${cfg.lv[team][i]}</small></div>${!team && !i ? '<i class="vs-me">YOU</i>' : ''}</div>`;
+      return `<div class="vs-card ${team ? 'e' : 'a'} ${!team && !i ? 'ar-me' : ''}" style="--i:${i}"><div class="vs-pic"><img src="${a.full}" alt=""></div><div class="vs-cap"><b>${api.esc(cfg.names[team][i])}</b><small>${Core.ROLE[H.role]}・Lv.${cfg.lv[team][i]}</small></div>${!team && !i ? '<i class="vs-me">YOU</i>' : ''}</div>`;
     };
     const node = elx(`<section class="ar-vs" style="--tc:${cfg.team.c};--tc2:${cfg.team.c2}">
       <div class="vs-bg"><i class="vs-top"></i><i class="vs-bot"></i><i class="vs-slash"></i></div>
@@ -1755,7 +1760,7 @@
       body: `<ol class="help-list">
         <li><b>目標</b>3 對 3 在伸展台上推進，依序打倒對方的 2 座香水塔，再擊碎<b>鑽石主堡</b>就獲勝。一局約 2–4 分鐘。</li>
         <li><b>操作</b>左下搖桿移動；英雄會自動普攻。右下是技能，點了會<b>自動瞄準</b>。大招要等能量條集滿。</li>
-        <li><b>懶人模式</b>按左上「自動」，名媛會自己走位、放技能。花粉鑽請「教練代打」，就是職業級操作。</li>
+        <li><b>懶人模式</b>按左上「自動」，名媛會自己走位、放技能。花粉鑽請「教練代打」，職業級操作再加屬性 +12%。</li>
         <li><b>小兵</b>粉絲團和狗仔隊會定時出動，跟著小兵一起推塔比較安全；防禦塔會優先攻擊小兵。</li>
         <li><b>段位</b>青銅 → 白銀 → 黃金 → 白金 → 鑽石 → 星耀 → 傳說。贏 +1 星、輸 −1 星。</li>
         <li><b>成長</b>英雄等級與星等和王國的名媛殿堂共用：用金幣升級、用對戰掉落的碎片升星，數值會變強。</li>
@@ -1772,7 +1777,7 @@
   }
 
   // ---------- 戰鬥 ----------
-  const STEP = 1 / 60;
+  const STEP = 1 / 60, MIN_SC = 1.2;
   const HERO_COL = { erika: '#ff8fc0', vivi: '#9be07a', vita: '#5fd4ff', chiyo: '#ff8a5c', shino: '#9aa6ff', fumi: '#f2cf7a' };
   const PROJ_COL = { star: '#ffb3d6', macaron: '#ffd1e3', bolt: '#7fe3ff', neon: '#7fe3ff', ink: '#8e9cff', talisman: '#ffdf8a', flash: '#ffffff', drop: '#ff8fc0' };
   const PHASE_TXT = {
@@ -1916,7 +1921,7 @@
       const big = u.id === P.id, sk = HD[u.hid].skills[2];
       if (!big && B.t - miniCine < 1.2) return;
       if (!big) miniCine = B.t;
-      const n = elx(`<div class="cine ${big ? 'big' : 'mini'} ${u.team ? 'foe' : 'ally'}" style="--hc:${colOf(u)}"><div class="cn-band"><i class="cn-lines"></i></div><img class="cn-img" src="${artOf(u).full}" alt=""><div class="cn-txt"><small>ULTIMATE · ${sk.en}</small><b>${sk.name}</b><span>${api.esc(nameOf(u))}</span></div><i class="cn-flash"></i></div>`);
+      const n = elx(`<div class="cine ${big ? 'big' : 'mini'} ${u.team ? 'foe' : 'ally'}" style="--hc:${colOf(u)}"><div class="cn-band"><i class="cn-lines"></i><span class="cn-pic"><img class="cn-img" src="${artOf(u).full}" alt=""></span></div><div class="cn-txt"><small>ULTIMATE · ${sk.en}</small><b>${sk.name}</b><span>${api.esc(nameOf(u))}</span></div><i class="cn-flash"></i></div>`);
       $('.bt-cine').appendChild(n);
       later(A, () => n.remove(), big ? 1700 : 1350);
       if (big) {
@@ -2178,19 +2183,19 @@
     }
     function drawShadow(u) {
       if (u.kind === 'hero') { if (!u.alive) return; g.drawImage(SH, u.x - 20, u.y - 7, 40, 14); }
-      else if (u.kind === 'minion') g.drawImage(SH, u.x - 12, u.y - 4, 24, 8);
+      else if (u.kind === 'minion') g.drawImage(SH, u.x - 14, u.y - 5, 28, 10);
       else if (u.alive) g.drawImage(SH, u.x - (u.kind === 'crystal' ? 50 : 32), u.y - 12, u.kind === 'crystal' ? 100 : 64, 24);
     }
     function drawUnit(u, t) {
       if (u.kind === 'hero') return drawHero(u, t);
       if (u.kind === 'minion') {
-        const s = minionSprite(u.mk, u.team), bob = u.moving ? Math.abs(Math.sin(t * 10 + u.id)) * 1.6 : 0, lunge = u.atkAnim > 0 ? u.face * (u.atkAnim / 0.2) * 3 : 0;
-        const x0 = u.x - s.w / 2 + lunge, y0 = u.y - s.h + 2 - bob;
+        const s = minionSprite(u.mk, u.team), sw = s.w * MIN_SC, sh = s.h * MIN_SC, bob = u.moving ? Math.abs(Math.sin(t * 10 + u.id)) * 1.6 : 0, lunge = u.atkAnim > 0 ? u.face * (u.atkAnim / 0.2) * 3 : 0;
+        const x0 = u.x - sw / 2 + lunge, y0 = u.y - sh + 2 - bob;
         g.save(); if (u.face < 0) { g.translate(u.x * 2, 0); g.scale(-1, 1); }
-        g.drawImage(s.c, u.face < 0 ? u.x * 2 - x0 - s.w : x0, y0, s.w, s.h);
-        if (u.flash > 0) { g.globalAlpha = Math.min(1, u.flash / 0.14) * 0.8; g.drawImage(s.white, u.face < 0 ? u.x * 2 - x0 - s.w : x0, y0, s.w, s.h); }
+        g.drawImage(s.c, u.face < 0 ? u.x * 2 - x0 - sw : x0, y0, sw, sh);
+        if (u.flash > 0) { g.globalAlpha = Math.min(1, u.flash / 0.14) * 0.7; g.drawImage(s.white, u.face < 0 ? u.x * 2 - x0 - sw : x0, y0, sw, sh); }
         g.restore();
-        if (u.mk === 'pap' && u.atkAnim > 0.12) { g.save(); g.globalCompositeOperation = 'lighter'; g.drawImage(glowSp('#ffffff', 0.4), u.x - 3 + u.face * 4 - 12, y0 + s.h * 0.45 - 12, 24, 24); g.restore(); }
+        if (u.mk === 'pap' && u.atkAnim > 0.12) { g.save(); g.globalCompositeOperation = 'lighter'; g.drawImage(glowSp('#ffffff', 0.4), u.x - 3 + u.face * 4 - 14, y0 + sh * 0.45 - 14, 28, 28); g.restore(); }
         if (u.stun > 0) drawStun(u.x, y0 - 3, t, 0.7);
         return;
       }
@@ -2253,11 +2258,11 @@
       const dx = u.face < 0 ? u.x * 2 - x0 - w : x0;
       if (spr) {
         g.drawImage(spr.c, dx, y0, w, h);
-        if (u.flash > 0) { g.globalAlpha = Math.min(1, u.flash / 0.14) * 0.75 * (u.untarget > 0 ? 0.45 : 1); g.drawImage(spr.white, dx, y0, w, h); }
+        if (u.flash > 0) { g.globalAlpha = Math.min(1, u.flash / 0.14) * 0.55 * (u.untarget > 0 ? 0.45 : 1); g.drawImage(spr.white, dx, y0, w, h); }
       }
       g.restore();
       if (FX.charge.has(u.id)) { const ch = FX.charge.get(u.id), p = ch.t / ch.life; g.save(); g.globalCompositeOperation = 'lighter'; g.drawImage(glowSp('#7fe3ff', 0.3), u.x + u.face * 12 - 8 - p * 14, u.y - h * 0.55 - 8 - p * 14, 16 + p * 28, 16 + p * 28); g.restore(); }
-      if (u.shield > 0) { g.save(); g.globalCompositeOperation = 'lighter'; g.globalAlpha = 0.22; g.fillStyle = '#bfe4ff'; g.beginPath(); g.ellipse(u.x, u.y - h * 0.46, w * 0.72, h * 0.58, 0, 0, TAU); g.fill(); g.globalAlpha = 0.7 + 0.2 * Math.sin(t * 6); g.strokeStyle = '#d9f0ff'; g.lineWidth = 1.3; g.stroke(); g.restore(); }
+      if (u.shield > 0) { g.save(); g.globalCompositeOperation = 'lighter'; g.globalAlpha = 0.1; g.fillStyle = '#9fd4ff'; g.beginPath(); g.ellipse(u.x, u.y - h * 0.46, w * 0.72, h * 0.58, 0, 0, TAU); g.fill(); g.globalAlpha = 0.5 + 0.2 * Math.sin(t * 6); g.strokeStyle = '#cfeaff'; g.lineWidth = 1.2; g.stroke(); g.globalAlpha = 0.35; g.lineWidth = 0.8; g.beginPath(); g.ellipse(u.x - w * 0.25, u.y - h * 0.78, w * 0.18, h * 0.08, -0.5, 0, TAU); g.stroke(); g.restore(); }
       if (u.stun > 0) drawStun(u.x, y0 - 2, t);
       if (u.taunt >= 0 && u.tauntT > 0) { g.fillStyle = '#ff5a7a'; g.font = '900 13px Georgia, serif'; g.textAlign = 'center'; g.fillText('!', u.x, y0 - 4); }
       if (u.hasteT > 0 && u.moving) { g.save(); g.strokeStyle = 'rgba(255,255,255,.5)'; g.lineWidth = 1; for (let i = 0; i < 3; i++) { const yy = u.y - 12 - i * 14; g.beginPath(); g.moveTo(u.x - u.face * 14, yy); g.lineTo(u.x - u.face * 26, yy); g.stroke(); } g.restore(); }
@@ -2289,7 +2294,7 @@
       }
       if (u.kind === 'minion') {
         if (u.hp >= u.maxHp) return;
-        const s = minionSprite(u.mk, u.team), bw = u.mk === 'super' ? 24 : 18, by = u.y - s.h - 2;
+        const s = minionSprite(u.mk, u.team), bw = u.mk === 'super' ? 26 : 20, by = u.y - s.h * MIN_SC - 2;
         g.fillStyle = 'rgba(16,4,14,.8)'; g.fillRect(u.x - bw / 2 - 0.6, by - 0.6, bw + 1.2, 3.4);
         g.fillStyle = u.team ? '#ff5a7a' : '#6fd0ff'; g.fillRect(u.x - bw / 2, by, bw * cl(u.hp / u.maxHp, 0, 1), 2.2);
         return;
@@ -2344,7 +2349,7 @@
       // 光柱
       for (const pl of FX.pillars) {
         const p = pl.t / pl.life, a = p < 0.2 ? p / 0.2 : 1 - (p - 0.2) / 0.8;
-        const gr = g.createLinearGradient(0, pl.y - 220, 0, pl.y); gr.addColorStop(0, 'rgba(255,255,255,0)'); gr.addColorStop(0.7, pl.color + '99'); gr.addColorStop(1, '#ffffff');
+        const gr = g.createLinearGradient(0, pl.y - 220, 0, pl.y); gr.addColorStop(0, 'rgba(255,255,255,0)'); gr.addColorStop(0.7, hex6(pl.color) + '99'); gr.addColorStop(1, '#ffffff');
         g.globalAlpha = a * 0.8; g.fillStyle = gr; g.fillRect(pl.x - pl.w / 2 * (1 - p * 0.5), pl.y - 220, pl.w * (1 - p * 0.5), 220);
       }
       // 光束技能
@@ -2650,7 +2655,7 @@
     const deltaTxt = R.rr.promo ? `晉級 ${T1.name}！` : R.rr.demo ? `降到 ${T1.name}` : R.rr.kept ? '敗方 MVP・保星成功' : R.same ? '段位不變' : win ? '星星 +1' : '星星 −1';
     const row = (team, h) => {
       const tag = h === mvp ? '<i class="mvp">MVP</i>' : h === R.loserBest && h.team !== mvp.team ? '<i class="mvp s">敗方 MVP</i>' : '';
-      return `<li class="${h === P ? 'me' : ''}"><img src="${cfg.art[team][h.slot].face}" alt=""><span class="bn"><b>${api.esc(cfg.names[team][h.slot])}</b><small>Lv.${h.lvl}・${Core.ROLE[HD[h.hid].role]}</small></span><span class="kda num">${h.k}/${h.d}/${h.a}</span><span class="dm num">${fmtK(h.heroDmg)}</span>${tag}</li>`;
+      return `<li class="${h === P ? 'ar-me' : ''}"><img src="${cfg.art[team][h.slot].face}" alt=""><span class="bn"><b>${api.esc(cfg.names[team][h.slot])}</b><small>Lv.${h.lvl}・${Core.ROLE[HD[h.hid].role]}</small></span><span class="kda num">${h.k}/${h.d}/${h.a}</span><span class="dm num">${fmtK(h.heroDmg)}</span>${tag}</li>`;
     };
     const rewards = R.surr ? '<div class="rs-none">投降不會獲得獎勵</div>' : `
       <div class="rw"><span class="rw-ic">${api.icons.coin()}</span><span class="rw-t">金幣</span><b class="num" data-n="${R.rw.coins}">0</b></div>

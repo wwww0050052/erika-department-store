@@ -1248,6 +1248,7 @@
     overlay,
     go: p => go(p),
     on(ev, fn) { (BUS[ev] = BUS[ev] || []).push(fn); },
+    off(ev, fn) { if (BUS[ev]) BUS[ev] = BUS[ev].filter(f => f !== fn); },
     get page() { return page; },
   });
   function openGame(g) {
