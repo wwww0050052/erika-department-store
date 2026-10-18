@@ -1,0 +1,12 @@
+<!doctype html>
+<html lang="zh-Hant"><head><meta charset="utf-8"><title>名媛之塔 美術檢查</title>
+<style>body{background:#2a1a2e;color:#fff;font-family:sans-serif;margin:8px}.row{display:flex;flex-wrap:wrap;gap:6px}.m{width:120px;text-align:center;font-size:11px}.m svg{width:120px;height:138px}canvas{background:#3a2440}</style></head>
+<body><div class="row" id="orbs"></div><div class="row" id="icons"></div><div class="row" id="mons"></div>
+<script src="../js/data.js"></script><script src="../js/art.js"></script>
+<script>
+const sp = DT.makeOrbSprites(64);
+for (const k in sp) { sp[k].style.width = '64px'; document.getElementById('orbs').appendChild(sp[k]); }
+document.getElementById('icons').innerHTML = DT.ORB_TYPES.map(t => DT.attrIcon(t, 28)).join('');
+const attrs = Object.keys(DT.ATTRS);
+document.getElementById('mons').innerHTML = DT.MONSTER_KINDS.map((k, i) => `<div class="m">${DT.monsterSVG({ kind: k, attr: attrs[i % 5], boss: i % 3 == 0, crown: i % 3 == 0 })}${k}</div>`).join('');
+</script></body></html>
