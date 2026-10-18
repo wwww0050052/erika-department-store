@@ -417,3 +417,10 @@ img { display: block; }
   .b-field { min-height: 140px; }
 }
 @media (min-width: 481px) { body { background: #0b0309 radial-gradient(circle at 50% 30%, #3a1430, #0b0309 70%); } }
+
+.b-boardwrap.flash::after { content: ''; position: absolute; inset: 0; pointer-events: none; background: radial-gradient(circle, rgba(255,240,200,.55), transparent 70%); animation: fadeOut .35s forwards; }
+.seg { display: flex; gap: 4px; }
+.seg button { background: rgba(255,255,255,.06); border: 1px solid var(--line); border-radius: 10px; padding: 4px 10px; font-size: 13px; line-height: 1.2; }
+.seg button small { display: block; font-size: 9px; color: var(--muted); }
+.seg button.on { background: var(--rose2); border-color: var(--rose); color: #fff; }
+.seg button.on small { color: #ffe0ec; }
