@@ -28,7 +28,16 @@ DT.Battle = class {
       onMoveStart: () => { this.$('.b-timer').classList.add('on'); },
       onTimer: f => { this.$('.b-timer i').style.transform = `scaleX(${f})`; if (!f) this.$('.b-timer').classList.remove('on'); },
       onSwap: () => DT.sfx('swap'),
+      onShuffle: () => DT.ui.toast('沒有可以消的珠了，重新洗牌'),
+      onBlast: (sp) => { DT.sfx('blast'); this.flash(sp); },
+      mode: DT.mode(),
     });
+    if (DT.mode() === 'swap' && !DT.S.settings.tutSwap) {
+      DT.S.settings.tutSwap = 1; DT.save();
+      setTimeout(() => !this.over && DT.ui.modal(`<h3>三消玩法</h3><p>按住一顆珠往旁邊<b>滑</b>（或先點一顆、再點隔壁那顆），交換後連成 3 顆就消除，掉下來的珠還能連鎖。</p>
+        <p>✦ 4 連 → <b>條紋珠</b>（清整排）<br>✦ L／T 形 → <b>包裝珠</b>（炸周圍 3×3）<br>✦ 5 連 → <b>名牌彩虹</b>（跟誰交換就清掉整盤那一色）</p>
+        <p class="muted small">特殊珠炸開的傷害會打全體敵人。停太久會提示可以走的步。設定裡可以換回神魔之塔的轉珠玩法。</p>`, [{ text: '開始！', primary: true }]), 1500);
+    }
     this.applyMoveTime();
     this.startWave();
   }
@@ -47,12 +56,16 @@ DT.Battle = class {
       if (L.type === 'all' || L.type === 'heal') m *= L.atk;
       else if (L.type === 'attr' || L.type === 'time') { if (L.attr === card.attr) m *= L.atk; }
       else if (L.type === 'hpatk') { if (L.attr === 'all' || L.attr === card.attr) m *= L.atk; }
-      else if (L.type === 'combo') { if (combo >= L.n) m *= L.atk; }
+      else if (L.type === 'combo') { if (combo >= DT.comboNeed(L.n)) m *= L.atk; }
     });
     this.boosts.forEach(b => { if (b.attr === 'all' || b.attr === card.attr) m *= b.mult; });
     return m;
   }
   healMult() { let m = 1; this.leaders.forEach(L => { if (L.type === 'heal') m *= L.mult; }); return m; }
+  flash(sp) {
+    const f = this.$('.b-boardwrap');
+    f.classList.remove('flash'); void f.offsetWidth; f.classList.add('flash');
+  }
   applyMoveTime() {
     let t = 5;
     this.leaders.forEach(L => { if (L.type === 'time') t += L.sec; });
@@ -184,11 +197,11 @@ DT.Battle = class {
     const plans = this.members.map(m => {
       const mine = groups.filter(g => g.t === m.card.attr);
       if (!mine.length) return null;
-      const factor = mine.reduce((s, g) => s + 1 + (g.n - 3) * 0.25, 0);
-      return { m, base: m.atk * factor * comboMult * this.atkMult(m.card, combo), all: mine.some(g => g.n >= 5) };
+      const factor = mine.reduce((s, g) => s + groupFactor(g), 0);
+      return { m, base: m.atk * factor * comboMult * this.atkMult(m.card, combo) * DT.modeMult(), all: mine.some(g => g.n >= 5 || g.special || g.rainbow) };
     });
     const hearts = groups.filter(g => g.t === 'heart');
-    const heal = hearts.length ? this.members.reduce((s, m) => s + m.rec, 0) * hearts.reduce((s, g) => s + 1 + (g.n - 3) * 0.25, 0) * comboMult * this.healMult() : 0;
+    const heal = hearts.length ? this.members.reduce((s, m) => s + m.rec, 0) * hearts.reduce((s, g) => s + groupFactor(g), 0) * comboMult * this.healMult() * DT.modeMult() : 0;
     // 先在頭像上亮出數字
     plans.forEach((p, i) => {
       if (!p) return;
@@ -227,7 +240,7 @@ DT.Battle = class {
     if (f.hp <= 0) return;
     const el = this.foeEl(k);
     let dmg;
-    const shield = f.ability && f.ability.type === 'combo' && !opts.skill && combo < f.ability.n;
+    const shield = f.ability && f.ability.type === 'combo' && !opts.skill && combo < DT.comboNeed(f.ability.n);
     if (shield) dmg = 0;
     else dmg = Math.max(1, Math.round(base * DT.attrMult(m.card.attr, f.attr) - (opts.skill ? 0 : f.def)));
     // 數值立刻扣（下一位隊員才會換目標），畫面晚一點跟上
@@ -241,7 +254,7 @@ DT.Battle = class {
       const mult = DT.attrMult(m.card.attr, f.attr);
       const r = el.getBoundingClientRect(), pr = this.$('.b-field').getBoundingClientRect();
       this.floatAt(this.$('.b-field'), r.left - pr.left + r.width / 2 + (Math.random() * 30 - 15), r.top - pr.top + r.height * 0.35,
-        shield ? `需 ${f.ability.n} Combo` : fmt(dmg), 'dmg attr-' + m.card.attr + (mult > 1 ? ' weak' : mult < 1 ? ' resist' : '') + (shield ? ' miss' : ''));
+        shield ? `需 ${DT.comboNeed(f.ability.n)} Combo` : fmt(dmg), 'dmg attr-' + m.card.attr + (mult > 1 ? ' weak' : mult < 1 ? ' resist' : '') + (shield ? ' miss' : ''));
       el.classList.remove('hurt'); void el.offsetWidth; el.classList.add('hurt');
       DT.sfx(shield ? 'block' : 'hit');
       this.updateFoes();
@@ -286,7 +299,7 @@ DT.Battle = class {
     const i = this.foes.indexOf(f), el = this.foeEl(i);
     el.classList.remove('attack'); void el.offsetWidth; el.classList.add('attack');
     await DT.wait(300);
-    let dmg = f.atk * (f.enraged ? 2 : 1);
+    let dmg = f.atk * (f.enraged ? 2 : 1) * DT.MODE_FOE_ATK[DT.mode()];
     if (this.guard) dmg *= 1 - this.guard.pct;
     dmg = Math.round(dmg * (0.92 + Math.random() * 0.16));
     this.hp -= dmg;
@@ -317,8 +330,8 @@ DT.Battle = class {
     DT.ui.modal(`
       <div class="sk-head"><img src="img/icon/i${pad(m.card.id)}.webp" alt=""><div><div class="sk-name">${DT.attrIcon(m.card.attr, 18)} ${esc(m.card.name)} ${DT.stars(m.card.rarity)}</div>
       <div class="sk-sub">Lv.${m.inst.lv}${m.helper ? '・閨蜜助戰' : ''}</div></div></div>
-      <div class="sk-box"><b>主動技｜${esc(sk.name)}</b><p>${esc(sk.desc)}</p><small>冷卻 ${m.cd} 回合${m.cdLeft > 0 ? `・還要 ${m.cdLeft} 回合` : '・已就緒'}</small></div>
-      ${i === 0 || m.helper ? `<div class="sk-box lead"><b>隊長技｜${esc(m.card.leader.name)}</b><p>${esc(m.card.leader.desc)}</p></div>` : ''}`,
+      <div class="sk-box"><b>主動技｜${esc(sk.name)}</b><p>${esc(DT.skillDesc(m.card))}</p><small>冷卻 ${m.cd} 回合${m.cdLeft > 0 ? `・還要 ${m.cdLeft} 回合` : '・已就緒'}</small></div>
+      ${i === 0 || m.helper ? `<div class="sk-box lead"><b>隊長技｜${esc(m.card.leader.name)}</b><p>${esc(DT.leaderDesc(m.card))}</p></div>` : ''}`,
       ready ? [{ text: '發動技能', primary: true, fn: () => this.useSkill(i) }, { text: '取消' }] : [{ text: '知道了' }]);
   }
   async useSkill(i) {
@@ -339,7 +352,10 @@ DT.Battle = class {
       case 'convert': b.convert(sk.from, sk.to); break;
       case 'delay': this.foes.forEach(f => { if (f.hp > 0) f.cdLeft += sk.n; }); if (sk.from) b.convert(sk.from, sk.to); this.updateFoes(); break;
       case 'boost': this.boosts.push({ attr: sk.attr, mult: sk.mult, turns: sk.turns + 1 }); break; // +1：本回合結算後才開始扣
-      case 'time': this.timeBuff = { sec: sk.sec, turns: sk.turns + 1 }; this.applyMoveTime(); break;
+      case 'time':
+        if (DT.mode() === 'swap') this.boosts.push({ attr: 'all', mult: 1.5, turns: sk.turns + 1 }); // 三消沒有計時：改成全隊攻擊 1.5 倍
+        else { this.timeBuff = { sec: sk.sec, turns: sk.turns + 1 }; this.applyMoveTime(); }
+        break;
       case 'nuke': {
         const alive = this.foes.map((f, k) => k).filter(k => this.foes[k].hp > 0);
         const targets = sk.all ? alive : [this.target >= 0 && this.foes[this.target].hp > 0 ? this.target : alive[0]];
@@ -394,8 +410,9 @@ DT.Battle = class {
   }
 };
 
+function groupFactor(g) { return g.special ? g.n * 0.3 : 1 + (g.n - 3) * 0.25; }
 function abilityBadge(a) {
-  return { combo: `🛡${a.n}`, junk: '♻', enrage: '🔥', regen: '✚', first: '⚡' }[a.type] || '!';
+  return { combo: `🛡${DT.comboNeed(a.n)}`, junk: '♻', enrage: '🔥', regen: '✚', first: '⚡' }[a.type] || '!';
 }
 function fmt(n) { n = Math.round(n); return n >= 1e6 ? (n / 1e6).toFixed(n >= 1e7 ? 0 : 1) + 'M' : n >= 1e4 ? (n / 1e3).toFixed(n >= 1e5 ? 0 : 1) + 'K' : n.toLocaleString(); }
 function pad(n) { return String(n).padStart(2, '0'); }

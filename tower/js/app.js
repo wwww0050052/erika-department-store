@@ -30,6 +30,7 @@
         skill: () => { [523, 659, 784, 1046].forEach((f, i) => tone(f, 0.18, 'triangle', 0.07, i * 0.06)); },
         win: () => { [523, 659, 784, 1046, 1318].forEach((f, i) => tone(f, 0.3, 'triangle', 0.08, i * 0.1)); },
         lose: () => { [392, 330, 262].forEach((f, i) => tone(f, 0.35, 'sine', 0.08, i * 0.18)); },
+        blast: () => { tone(300, 0.25, 'sawtooth', 0.05, 0, 1200); tone(1600, 0.2, 'triangle', 0.05, 0.05); },
         revive: () => { [262, 392, 523, 784].forEach((f, i) => tone(f, 0.25, 'triangle', 0.08, i * 0.07)); },
         coin: () => { tone(1318, 0.08, 'square', 0.04); tone(1760, 0.16, 'square', 0.04, 0.07); },
         gacha: () => { for (let i = 0; i < 8; i++) tone(400 + i * 90, 0.08, 'triangle', 0.05, i * 0.06); },
@@ -197,7 +198,7 @@
       <p class="muted">選一位閨蜜助戰（她的隊長技也會生效）</p>
       <div class="friends">${friends.map((f, i) => { const c = DT.CARD[f.id]; return `<button class="friend${i === 0 ? ' on' : ''}" data-i="${i}">
         <img src="img/icon/i${pad(f.id)}.webp" alt=""><div><b>${f.friend.name}</b><small>${f.friend.tagline}</small>
-        <span>${DT.attrIcon(c.attr, 14)} ${esc(c.name)} ${DT.stars(c.rarity)} Lv${f.lv}</span><em>${esc(c.leader.desc)}</em></div></button>`; }).join('')}</div>`,
+        <span>${DT.attrIcon(c.attr, 14)} ${esc(c.name)} ${DT.stars(c.rarity)} Lv${f.lv}</span><em>${esc(DT.leaderDesc(c))}</em></div></button>`; }).join('')}</div>`,
       [{ text: `出發！ <small>⚡${st.stamina}</small>`, primary: true, fn: () => startBattle(floor, friends[pick]) }, { text: '再想想' }],
       { cls: 'prep', onMount: (w) => { w.querySelectorAll('.friend').forEach(b => b.onclick = () => { pick = +b.dataset.i; w.querySelectorAll('.friend').forEach(x => x.classList.toggle('on', x === b)); }); } });
   }
@@ -315,7 +316,7 @@
         <div class="team-slots">${[0, 1, 2, 3, 4].map(i => { const t = team[i]; return t
           ? `<button class="slot attr-${DT.CARD[t.id].attr}" data-s="${i}"><img src="img/icon/i${pad(t.id)}.webp" alt=""><small>Lv${t.lv}</small>${i === 0 ? '<b>隊長</b>' : ''}</button>`
           : `<button class="slot empty" data-s="${i}">＋</button>`; }).join('')}</div>
-        <div class="team-info">${L ? `<b>隊長技｜${esc(L.name)}</b>${esc(L.desc)}` : ''}<span>隊伍生命 ${tHp.toLocaleString()}（未含隊長技）</span></div>
+        <div class="team-info">${L ? `<b>隊長技｜${esc(L.name)}</b>${esc(DT.leaderDesc(DT.CARD[team[0].id]))}` : ''}<span>隊伍生命 ${tHp.toLocaleString()}（未含隊長技）</span></div>
       </div>
       <div class="sortbar">排序：${[['rarity', '稀有度'], ['attr', '屬性'], ['lv', '等級']].map(([k, t]) => `<button class="${closetSort === k ? 'on' : ''}" data-sort="${k}">${t}</button>`).join('')}</div>
       <div class="card-grid">${cards.map(c => cardTile(c)).join('')}
@@ -358,8 +359,8 @@
       <div class="cd-q">「${esc(card.quote)}」</div>
       <div class="cd-stats"><div><small>等級</small><b>${inst.lv}<i>/${max}</i></b></div><div><small>生命</small><b>${st.hp.toLocaleString()}</b></div><div><small>攻擊</small><b>${st.atk.toLocaleString()}</b></div><div><small>回復</small><b>${st.rec.toLocaleString()}</b></div></div>
       ${inst.lv < max ? `<div class="cd-exp"><i style="width:${inst.exp / DT.expToNext(card, inst.lv) * 100}%"></i></div>` : ''}
-      <div class="sk-box"><b>主動技｜${esc(card.skill.name)}</b><p>${esc(card.skill.desc)}</p><small>冷卻 ${DT.skillCd(inst)} 回合${inst.star >= 2 ? `（突破已縮短 ${card.skill.cd - DT.skillCd(inst)}）` : ''}</small></div>
-      <div class="sk-box lead"><b>隊長技｜${esc(card.leader.name)}</b><p>${esc(card.leader.desc)}</p></div>
+      <div class="sk-box"><b>主動技｜${esc(card.skill.name)}</b><p>${esc(DT.skillDesc(card))}</p><small>冷卻 ${DT.skillCd(inst)} 回合${inst.star >= 2 ? `（突破已縮短 ${card.skill.cd - DT.skillCd(inst)}）` : ''}</small></div>
+      <div class="sk-box lead"><b>隊長技｜${esc(card.leader.name)}</b><p>${esc(DT.leaderDesc(card))}</p></div>
       <p class="muted small">屬性：${att.name}（剋 ${DT.ATTRS[att.beats].name}）・重複抽到可突破，最多 +5（全能力 +8%／級，每 2 級技能冷卻 −1）</p>
       ${inst.lv < max ? `<div class="train"><button class="btn" data-n="1" ${s.gold < c1 ? 'disabled' : ''}>培育 +1<small>◉${DT.fmt(c1)}</small></button><button class="btn" data-n="10" ${s.gold < c10 ? 'disabled' : ''}>+10<small>◉${DT.fmt(c10)}</small></button><button class="btn" data-n="999" ${s.gold < cMax ? 'disabled' : ''}>到滿級<small>◉${DT.fmt(cMax)}</small></button></div>` : '<p class="maxed">已達最高等級 ✦</p>'}`,
       [s.team[0] !== uid ? { text: '設為隊長', primary: true, fn: () => { s.team = [uid, ...s.team.filter(x => x !== uid)].slice(0, 5); DT.save(); render(); ui.toast(`${card.name} 成為隊長`); } } : { text: '隊長中', primary: true }, { text: '關閉' }],
@@ -502,13 +503,17 @@
     ui.modal(`<h3>設定</h3>
       <div class="set-row"><span>名媛等級 Lv.${s.plv}</span><div class="cd-exp"><i style="width:${s.pexp / DT.pexpToNext(s.plv) * 100}%"></i></div></div>
       <label class="set-row"><span>音效</span><input type="checkbox" id="setSfx" ${s.settings.sfx ? 'checked' : ''}></label>
+      <div class="set-row"><span>玩法</span><div class="seg" id="setMode"><button data-m="swap" class="${DT.mode() === 'swap' ? 'on' : ''}">三消<small>Candy Crush</small></button><button data-m="drag" class="${DT.mode() === 'drag' ? 'on' : ''}">轉珠<small>神魔之塔</small></button></div></div>
       <label class="set-row"><span>戰鬥動畫加速</span><input type="checkbox" id="setFast" ${s.settings.fast ? 'checked' : ''}></label>
       <div class="set-row"><span>屬性相剋</span><span class="attrs-chart">${DT.attrIcon('bag', 18)}›${DT.attrIcon('heel', 18)}›${DT.attrIcon('dessert', 18)}›${DT.attrIcon('bag', 18)}　${DT.attrIcon('jewel', 18)}⇄${DT.attrIcon('card', 18)}</span></div>
-      <p class="muted small">轉珠：按住一顆珠拖曳，經過的珠會互換；放手或時間到就結算。同色 3 顆以上連成一線就消除，一次消 5 顆以上會攻擊全體敵人。點敵人可以鎖定目標，點頭像看技能。</p>
+      <p class="muted small">${DT.mode() === 'swap'
+        ? '三消：把一顆珠往旁邊滑（或點兩顆相鄰的珠）交換，連成 3 顆就消除。4 連做出條紋珠、L/T 形做出包裝珠、5 連做出名牌彩虹，特殊珠炸開會打全體敵人。'
+        : '轉珠：按住一顆珠拖曳，經過的珠會互換；放手或時間到就結算。一次消 5 顆以上會攻擊全體敵人。'}點敵人可以鎖定目標，點頭像看技能。</p>
       <button class="btn danger small" id="reset">刪除存檔重新開始</button>`,
       [{ text: '完成', primary: true }],
       { onMount: (w, close) => {
         $('#setSfx', w).onchange = e => { s.settings.sfx = e.target.checked; DT.save(); };
+        w.querySelectorAll('#setMode button').forEach(b => b.onclick = () => { s.settings.mode = b.dataset.m; DT.save(); close(); ui.toast(b.dataset.m === 'swap' ? '已換成三消玩法' : '已換成轉珠玩法'); render(); setTimeout(settings, 200); });
         $('#setFast', w).onchange = e => { s.settings.fast = e.target.checked; DT.fast = e.target.checked; DT.save(); };
         $('#reset', w).onclick = () => { close(); ui.modal('<h3>確定刪除存檔？</h3><p>所有卡片、進度與粉鑽都會消失，無法復原。</p>', [{ text: '刪除', danger: true, fn: () => { localStorage.removeItem(DT.SAVE_KEY); location.reload(); } }, { text: '取消' }]); };
       } });
@@ -551,7 +556,7 @@
           // 有技能就放（回血技只在血少時放）
           const i = b.members.findIndex(m => m.cdLeft <= 0 && (m.card.skill.type !== 'heal' || b.hp < b.maxHp * 0.5) && m.card.skill.type !== 'refresh');
           if (i >= 0) b.useSkill(i);
-          else b.board.playPath(b.board.aiPath(250, 14));
+          else b.board.autoMove();
         }
         setTimeout(tick, 30);
       };

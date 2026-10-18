@@ -79,6 +79,25 @@ DT.makeOrbSprites = (cell) => {
     g.beginPath(); g.ellipse(44, 24, 26, 14, -0.35, 0, Math.PI * 2); g.fill();
     out[t] = c;
   });
+  // 名牌彩虹包（5 連做出來的特殊珠）：七彩球＋星芒
+  const c = document.createElement('canvas');
+  c.width = c.height = Math.round(cell * dpr);
+  const g = c.getContext('2d');
+  g.scale(c.width / 100, c.height / 100);
+  g.save(); g.shadowColor = 'rgba(0,0,0,.35)'; g.shadowBlur = 5; g.shadowOffsetY = 3;
+  const cg = g.createConicGradient ? g.createConicGradient(0, 50, 50) : null;
+  if (cg) { ['#e2445c', '#f0b93a', '#43b874', '#3f7fe0', '#8a55d6', '#ff74b0', '#e2445c'].forEach((col, i, arr) => cg.addColorStop(i / (arr.length - 1), col)); g.fillStyle = cg; }
+  else g.fillStyle = '#ff74b0';
+  g.beginPath(); g.arc(50, 50, 45, 0, Math.PI * 2); g.fill();
+  g.restore();
+  const sh = g.createRadialGradient(40, 34, 2, 50, 50, 46);
+  sh.addColorStop(0, 'rgba(255,255,255,.95)'); sh.addColorStop(0.35, 'rgba(255,255,255,.25)'); sh.addColorStop(1, 'rgba(60,0,60,.35)');
+  g.fillStyle = sh; g.beginPath(); g.arc(50, 50, 45, 0, Math.PI * 2); g.fill();
+  g.fillStyle = '#fff'; g.shadowColor = '#fff'; g.shadowBlur = 8;
+  g.beginPath();
+  for (let i = 0; i < 8; i++) { const ang = i * Math.PI / 4 - Math.PI / 2, rr = i % 2 ? 11 : 30; g.lineTo(50 + Math.cos(ang) * rr, 50 + Math.sin(ang) * rr); }
+  g.closePath(); g.fill();
+  out.rainbow = c;
   return out;
 };
 

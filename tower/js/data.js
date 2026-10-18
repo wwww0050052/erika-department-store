@@ -352,8 +352,22 @@ DT.STAGES = [];
   }
 })();
 
+// 玩法：swap＝三消（預設），drag＝轉珠。三消一步的 Combo 比較少，所以 Combo 門檻減半、傷害另外乘倍率
+DT.mode = () => (DT.S && DT.S.settings.mode) || 'swap';
+DT.MODE_MULT = { swap: 3, drag: 1 };
+DT.MODE_FOE_ATK = { swap: 0.8, drag: 1 }; // 三消比較悠閒：敵人攻擊也輕一點
+DT.modeMult = () => DT.MODE_MULT[DT.mode()];
+DT.comboNeed = n => DT.mode() === 'swap' ? Math.max(2, Math.round(n / 2)) : n;
+DT.skillDesc = card => (DT.mode() === 'swap' && card.skill.type === 'time') ? `${card.skill.turns} 回合內全隊攻擊力 1.5 倍` : card.skill.desc;
+DT.leaderDesc = card => {
+  const L = card.leader;
+  if (DT.mode() !== 'swap') return L.desc;
+  if (L.type === 'time') return L.desc.replace(/轉珠時間延長 \d+ 秒，/, '');
+  if (L.type === 'combo') return L.desc.replace(/\d+ Combo/, DT.comboNeed(L.n) + ' Combo');
+  return L.desc;
+};
 DT.ABILITY_TEXT = {
-  combo: a => `連擊護盾：少於 ${a.n} Combo 傷害無效`,
+  combo: a => `連擊護盾：少於 ${DT.comboNeed(a.n)} Combo 傷害無效`,
   junk: a => `過季攻勢：攻擊時把 ${a.n} 粒珠變成過季貨`,
   enrage: () => '殘血狂暴：生命低於 35% 攻擊力翻倍',
   regen: () => '貴婦保養：攻擊時回復 15% 生命',
