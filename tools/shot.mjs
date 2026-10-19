@@ -1,7 +1,7 @@
 // 無頭 Edge 截圖／操作工具（開發用）
 // 用法：node tools/shot.mjs <網址> <輸出.png> [--w 390] [--h 844] [--wait 1500] [--steps steps.json] [--timeout 30000]
 // steps.json 是陣列，每一步可以是：
-//   {"wait": 毫秒} | {"eval": "JS 程式（可 await，回傳值會印出）"} | {"tap": [x, y]} | {"drag": [x1, y1, x2, y2]} | {"shot": "另一張.png"}
+//   {"wait": 毫秒} | {"cdp": ["Domain.method", 參數]} | {"eval": "JS 程式（可 await，回傳值會印出）"} | {"tap": [x, y]} | {"drag": [x1, y1, x2, y2]} | {"shot": "另一張.png"}
 // 頁面的 console 錯誤與例外會印在終端機上。
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
@@ -60,6 +60,7 @@ try {
     if (s.eval) { const r = await send('Runtime.evaluate', { expression: `(async()=>{${s.eval}})()`, awaitPromise: true, returnByValue: true }); console.log('eval →', JSON.stringify(r.result?.value ?? r.exceptionDetails?.exception?.description)); }
     if (s.tap) { await mouse('mouseMoved', ...s.tap); await mouse('mousePressed', ...s.tap); await sleep(40); await mouse('mouseReleased', ...s.tap); }
     if (s.drag) { const [x1, y1, x2, y2] = s.drag; await mouse('mousePressed', x1, y1); for (let i = 1; i <= 8; i++) { await mouse('mouseMoved', x1 + (x2 - x1) * i / 8, y1 + (y2 - y1) * i / 8); await sleep(16); } await mouse('mouseReleased', x2, y2); }
+    if (s.cdp) { const r = await send(s.cdp[0], s.cdp[1] || {}); console.log(`cdp ${s.cdp[0]} →`, JSON.stringify(r)); }
     if (s.shot) await shot(s.shot);
   }
   await shot(out);

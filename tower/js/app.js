@@ -108,6 +108,7 @@
           <div class="tower-bar"><i style="width:${DT.highestCleared()}%"></i><span>${DT.highestCleared()} / 100 層</span></div>
           <button class="btn primary big" id="goNext">${done ? '前往名媛之塔' : '繼續攀塔'} <small>⚡${st.stamina}</small></button>
         </div>
+        ${installable() && !DT.S.settings.installHide ? `<div class="install-card"><span class="ic-ic"><img src="icons/icon-192.png" alt=""></span><div><b>把名媛之塔裝到手機桌面</b><small>全螢幕、開得更快、沒網路也能玩</small></div><button class="btn primary tiny" id="install">安裝</button><button class="ic-x" id="installHide" aria-label="不再顯示">×</button></div>` : ''}
         <div class="home-grid">
           <button data-go="gacha"><span class="hg-ic">👜</span>名牌福袋<small>${DT.S.tickets6 + DT.S.tickets5 ? '有確定券！' : '★6 機率 3%'}</small></button>
           <button data-go="closet"><span class="hg-ic">👠</span>衣帽間<small>${DT.S.cards.length}/${DT.CARDS.length} 種身分</small></button>
@@ -118,6 +119,10 @@
     $('#goNext').onclick = () => done ? go('tower') : prepareStage(next);
     v.querySelectorAll('[data-go]').forEach(b => b.onclick = () => go(b.dataset.go));
     $('#story').onclick = storyMenu;
+    if ($('#install')) {
+      $('#install').onclick = installApp;
+      $('#installHide').onclick = () => { DT.S.settings.installHide = 1; DT.save(); render(); ui.toast('之後可以在設定裡安裝'); };
+    }
   }
 
   // ── 攀塔（章節＋樓層） ──────────────────────
@@ -509,12 +514,14 @@
       <p class="muted small">${DT.mode() === 'swap'
         ? '三消：把一顆珠往旁邊滑（或點兩顆相鄰的珠）交換，連成 3 顆就消除。4 連做出條紋珠、L/T 形做出包裝珠、5 連做出名牌彩虹，特殊珠炸開會打全體敵人。'
         : '轉珠：按住一顆珠拖曳，經過的珠會互換；放手或時間到就結算。一次消 5 顆以上會攻擊全體敵人。'}點敵人可以鎖定目標，點頭像看技能。</p>
+      ${installable() ? '<div class="set-row"><span>安裝到手機桌面</span><button class="btn primary tiny" id="setInstall">安裝</button></div>' : isStandalone() ? '<div class="set-row"><span>已安裝成 App</span><span class="muted small">✓</span></div>' : ''}
       <button class="btn danger small" id="reset">刪除存檔重新開始</button>`,
       [{ text: '完成', primary: true }],
       { onMount: (w, close) => {
         $('#setSfx', w).onchange = e => { s.settings.sfx = e.target.checked; DT.save(); };
         w.querySelectorAll('#setMode button').forEach(b => b.onclick = () => { s.settings.mode = b.dataset.m; DT.save(); close(); ui.toast(b.dataset.m === 'swap' ? '已換成三消玩法' : '已換成轉珠玩法'); render(); setTimeout(settings, 200); });
         $('#setFast', w).onchange = e => { s.settings.fast = e.target.checked; DT.fast = e.target.checked; DT.save(); };
+        if ($('#setInstall', w)) $('#setInstall', w).onclick = () => { close(); installApp(); };
         $('#reset', w).onclick = () => { close(); ui.modal('<h3>確定刪除存檔？</h3><p>所有卡片、進度與粉鑽都會消失，無法復原。</p>', [{ text: '刪除', danger: true, fn: () => { localStorage.removeItem(DT.SAVE_KEY); location.reload(); } }, { text: '取消' }]); };
       } });
   }
@@ -562,6 +569,30 @@
       };
       setTimeout(tick, 50);
     });
+  }
+  // ── PWA：離線快取與安裝 ─────────────────────
+  let installEvt = null;
+  const isIOS = () => /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const isStandalone = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+  function installable() { return !isStandalone() && (!!installEvt || isIOS()); }
+  function installApp() {
+    if (installEvt) {
+      installEvt.prompt();
+      installEvt.userChoice.then(r => { if (r.outcome === 'accepted') ui.toast('安裝中…完成後從桌面圖示開啟'); installEvt = null; if (!battle) render(); });
+      return;
+    }
+    // iPhone／iPad 沒有安裝視窗，只能教她用 Safari 的「加入主畫面」
+    ui.modal(`<h3>裝到 iPhone 桌面</h3><div class="ios-steps">
+      <p><b>1</b> 用 <b>Safari</b> 開這個網頁（LINE、IG 裡的瀏覽器不行）</p>
+      <p><b>2</b> 點下方工具列的「分享」<span class="ios-share">⬆</span></p>
+      <p><b>3</b> 往下滑，選「<b>加入主畫面</b>」</p>
+      <p><b>4</b> 按右上角「新增」，桌面就會出現名媛之塔</p></div>
+      <p class="muted small">之後從桌面圖示開啟就是全螢幕，沒有網路也能玩。進度存在這支手機裡。</p>`, [{ text: '知道了', primary: true }]);
+  }
+  window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEvt = e; if (DT.S && !battle) render(); });
+  window.addEventListener('appinstalled', () => { installEvt = null; ui.toast('已安裝！之後可以從桌面開啟名媛之塔'); if (DT.S && !battle) render(); });
+  if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol) && !/[?&]debug/.test(location.search)) {
+    window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
   }
   document.addEventListener('visibilitychange', () => { if (document.hidden && DT.S) DT.saveNow(); });
   window.addEventListener('DOMContentLoaded', boot);

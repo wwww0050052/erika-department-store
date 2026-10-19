@@ -424,3 +424,13 @@ img { display: block; }
 .seg button small { display: block; font-size: 9px; color: var(--muted); }
 .seg button.on { background: var(--rose2); border-color: var(--rose); color: #fff; }
 .seg button.on small { color: #ffe0ec; }
+
+.install-card { display: flex; align-items: center; gap: 10px; margin: 12px 14px 0; padding: 10px 12px; border-radius: 16px; background: linear-gradient(120deg, rgba(242,138,178,.28), rgba(236,199,126,.18)); border: 1px solid rgba(236,199,126,.5); position: relative; }
+.install-card .ic-ic img { width: 42px; height: 42px; border-radius: 10px; }
+.install-card div { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.install-card b { font-family: var(--serif); font-size: 14px; } .install-card small { font-size: 11px; color: #f5d4e4; }
+.install-card .ic-x { position: absolute; top: 2px; right: 6px; background: none; border: 0; color: var(--muted); font-size: 16px; padding: 0 4px; }
+.ios-steps p { display: flex; gap: 10px; align-items: center; }
+.ios-steps p > b:first-child { flex: none; width: 24px; height: 24px; border-radius: 50%; background: var(--rose2); display: grid; place-items: center; font-size: 13px; }
+.ios-share { display: inline-grid; place-items: center; width: 24px; height: 24px; border: 1.5px solid #8ec5ff; color: #8ec5ff; border-radius: 6px; font-size: 13px; margin-left: 4px; }
+@media (display-mode: standalone) { #bar { padding-top: max(10px, env(safe-area-inset-top)); } }
